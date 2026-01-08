@@ -18,7 +18,7 @@
         "data/mobile_api_core_data.xml",
         "data/queue_job_channels.xml",
     ],
-    "post_init_hook": "post_init_hook",
+    "post_init_hook": "mobile_api_post_init",
     "installable": True,
     "application": False,
 }
