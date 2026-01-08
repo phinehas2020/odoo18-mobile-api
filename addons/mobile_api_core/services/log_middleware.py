@@ -31,7 +31,10 @@ class MobileApiLogMiddleware(BaseHTTPMiddleware):
         except LookupError:
             env = None
 
-        log_service = MobileApiLogService(env) if env else None
+        if env:
+            log_service = MobileApiLogService(env)
+        else:
+            log_service = None
         user_id = None
         device_id = None
         if env:
