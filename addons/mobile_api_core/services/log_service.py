@@ -2,7 +2,7 @@ import json
 
 class MobileApiLogService:
     def __init__(self, env):
-        self.env = env.sudo()
+        self.env = env
 
     def _logging_active(self):
         return self.env["rest.log"].logging_active()
