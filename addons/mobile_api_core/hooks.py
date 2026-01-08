@@ -17,6 +17,7 @@ def _ensure_param(config, key, fallback):
 
 
 def post_init_hook(env):
+    """Odoo 18+ post_init_hook receives env directly."""
     config = env["ir.config_parameter"].sudo()
 
     jwt_secret = _ensure_param(config, JWT_SECRET_PARAM, secrets.token_urlsafe(64))
