@@ -1,7 +1,6 @@
 import json
 
 from odoo import models
-from odoo.addons.queue_job.job import job
 
 from ..services.apns_client import ApnsClient
 
@@ -30,7 +29,6 @@ class MobilePushService(models.AbstractModel):
             count += 1
         return count
 
-    @job
     def _send_push_job(self, device_id, template_id, context=None):
         context = context or {}
         device = self.env["mobile.device"].sudo().browse(device_id)
