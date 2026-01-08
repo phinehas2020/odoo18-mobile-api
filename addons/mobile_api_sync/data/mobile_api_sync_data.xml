@@ -1,0 +1,9 @@
+<odoo>
+    <record id="seq_mobile_change_log" model="ir.sequence">
+        <field name="name">Mobile Change Log</field>
+        <field name="code">mobile.change.log</field>
+        <field name="implementation">standard</field>
+        <field name="padding">0</field>
+        <field name="company_id" eval="False" />
+    </record>
+</odoo>

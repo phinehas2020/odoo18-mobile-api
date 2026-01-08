@@ -1,0 +1,34 @@
+<odoo>
+    <record id="mobile_push_template_picking_assigned" model="mobile.push.template">
+        <field name="key">picking_assigned</field>
+        <field name="title">New picking assigned</field>
+        <field name="body">You have a new picking to process.</field>
+        <field name="deeplink_payload">{"module":"inventory","model":"stock.picking"}</field>
+    </record>
+    <record id="mobile_push_template_picking_changed" model="mobile.push.template">
+        <field name="key">picking_changed</field>
+        <field name="title">Picking updated</field>
+        <field name="body">A picking assigned to you was updated.</field>
+        <field name="deeplink_payload">{"module":"inventory","model":"stock.picking"}</field>
+    </record>
+    <record id="param_mobile_apns_team_id" model="ir.config_parameter">
+        <field name="key">mobile_api.apns.team_id</field>
+        <field name="value"></field>
+    </record>
+    <record id="param_mobile_apns_key_id" model="ir.config_parameter">
+        <field name="key">mobile_api.apns.key_id</field>
+        <field name="value"></field>
+    </record>
+    <record id="param_mobile_apns_bundle_id" model="ir.config_parameter">
+        <field name="key">mobile_api.apns.bundle_id</field>
+        <field name="value"></field>
+    </record>
+    <record id="param_mobile_apns_private_key" model="ir.config_parameter">
+        <field name="key">mobile_api.apns.private_key</field>
+        <field name="value"></field>
+    </record>
+    <record id="param_mobile_apns_use_sandbox" model="ir.config_parameter">
+        <field name="key">mobile_api.apns.use_sandbox</field>
+        <field name="value">true</field>
+    </record>
+</odoo>

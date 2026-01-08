@@ -1,0 +1,14 @@
+<odoo>
+    <record id="queue_job_channel_mobile_push_high" model="queue.job.channel">
+        <field name="name">mobile.push.high</field>
+        <field name="parent_id" ref="queue_job.channel_root" />
+    </record>
+    <record id="queue_job_channel_mobile_sync_normal" model="queue.job.channel">
+        <field name="name">mobile.sync.normal</field>
+        <field name="parent_id" ref="queue_job.channel_root" />
+    </record>
+    <record id="queue_job_channel_mobile_maintenance_low" model="queue.job.channel">
+        <field name="name">mobile.maintenance.low</field>
+        <field name="parent_id" ref="queue_job.channel_root" />
+    </record>
+</odoo>

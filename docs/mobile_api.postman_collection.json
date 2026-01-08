@@ -1,0 +1,162 @@
+{
+  "info": {
+    "name": "Odoo Mobile API",
+    "schema": "https://schema.getpostman.com/json/collection/v2.1.0/collection.json"
+  },
+  "item": [
+    {
+      "name": "Health",
+      "request": {
+        "method": "GET",
+        "url": "{{base_url}}/api/v1/health"
+      }
+    },
+    {
+      "name": "Login",
+      "request": {
+        "method": "POST",
+        "header": [{"key": "Content-Type", "value": "application/json"}],
+        "body": {
+          "mode": "raw",
+          "raw": "{\n  \"db\": \"odoo\",\n  \"login\": \"demo\",\n  \"password\": \"demo\",\n  \"device_id\": \"device-1\",\n  \"device_name\": \"iPhone\"\n}"
+        },
+        "url": "{{base_url}}/api/v1/auth/login"
+      }
+    },
+    {
+      "name": "Refresh",
+      "request": {
+        "method": "POST",
+        "header": [{"key": "Content-Type", "value": "application/json"}],
+        "body": {
+          "mode": "raw",
+          "raw": "{\n  \"refresh_token\": \"{{refresh_token}}\",\n  \"device_id\": \"device-1\"\n}"
+        },
+        "url": "{{base_url}}/api/v1/auth/refresh"
+      }
+    },
+    {
+      "name": "Menu",
+      "request": {
+        "method": "GET",
+        "header": [{"key": "Authorization", "value": "Bearer {{access_token}}"}],
+        "url": "{{base_url}}/api/v1/menu"
+      }
+    },
+    {
+      "name": "Settings",
+      "request": {
+        "method": "GET",
+        "header": [{"key": "Authorization", "value": "Bearer {{access_token}}"}],
+        "url": "{{base_url}}/api/v1/settings"
+      }
+    },
+    {
+      "name": "Pickings",
+      "request": {
+        "method": "GET",
+        "header": [{"key": "Authorization", "value": "Bearer {{access_token}}"}],
+        "url": "{{base_url}}/api/v1/inventory/pickings?state=assigned&mine=1"
+      }
+    },
+    {
+      "name": "Picking Detail",
+      "request": {
+        "method": "GET",
+        "header": [{"key": "Authorization", "value": "Bearer {{access_token}}"}],
+        "url": "{{base_url}}/api/v1/inventory/pickings/{{picking_id}}"
+      }
+    },
+    {
+      "name": "Scan",
+      "request": {
+        "method": "POST",
+        "header": [
+          {"key": "Authorization", "value": "Bearer {{access_token}}"},
+          {"key": "Content-Type", "value": "application/json"}
+        ],
+        "body": {
+          "mode": "raw",
+          "raw": "{\n  \"event_id\": \"{{event_id}}\",\n  \"code\": \"{{barcode}}\",\n  \"device_id\": \"device-1\",\n  \"record_version\": \"{{record_version}}\"\n}"
+        },
+        "url": "{{base_url}}/api/v1/inventory/pickings/{{picking_id}}/scan"
+      }
+    },
+    {
+      "name": "Validate",
+      "request": {
+        "method": "POST",
+        "header": [
+          {"key": "Authorization", "value": "Bearer {{access_token}}"},
+          {"key": "Content-Type", "value": "application/json"}
+        ],
+        "body": {
+          "mode": "raw",
+          "raw": "{\n  \"event_id\": \"{{event_id}}\",\n  \"device_id\": \"device-1\",\n  \"record_version\": \"{{record_version}}\"\n}"
+        },
+        "url": "{{base_url}}/api/v1/inventory/pickings/{{picking_id}}/validate"
+      }
+    },
+    {
+      "name": "Sync Changes",
+      "request": {
+        "method": "GET",
+        "header": [{"key": "Authorization", "value": "Bearer {{access_token}}"}],
+        "url": "{{base_url}}/api/v1/sync/changes?cursor=0"
+      }
+    },
+    {
+      "name": "Sync Push",
+      "request": {
+        "method": "POST",
+        "header": [
+          {"key": "Authorization", "value": "Bearer {{access_token}}"},
+          {"key": "Content-Type", "value": "application/json"}
+        ],
+        "body": {
+          "mode": "raw",
+          "raw": "{\n  \"device_id\": \"device-1\",\n  \"actions\": []\n}"
+        },
+        "url": "{{base_url}}/api/v1/sync/push"
+      }
+    },
+    {
+      "name": "Sales Orders",
+      "request": {
+        "method": "GET",
+        "header": [{"key": "Authorization", "value": "Bearer {{access_token}}"}],
+        "url": "{{base_url}}/api/v1/sales/orders"
+      }
+    },
+    {
+      "name": "Sales Note",
+      "request": {
+        "method": "POST",
+        "header": [
+          {"key": "Authorization", "value": "Bearer {{access_token}}"},
+          {"key": "Content-Type", "value": "application/json"}
+        ],
+        "body": {
+          "mode": "raw",
+          "raw": "{\n  \"note\": \"Mobile note\"\n}"
+        },
+        "url": "{{base_url}}/api/v1/sales/orders/{{order_id}}/note"
+      }
+    },
+    {
+      "name": "Device Register",
+      "request": {
+        "method": "POST",
+        "header": [
+          {"key": "Authorization", "value": "Bearer {{access_token}}"},
+          {"key": "Content-Type", "value": "application/json"}
+        ],
+        "body": {
+          "mode": "raw",
+          "raw": "{\n  \"device_id\": \"device-1\",\n  \"device_name\": \"iPhone\",\n  \"platform\": \"ios\"\n}"
+        },
+        "url": "{{base_url}}/api/v1/device/register"
+      }
+    }
+  ]
+}

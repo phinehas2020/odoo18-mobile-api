@@ -1,0 +1,11 @@
+<odoo>
+    <menuitem id="menu_mobile_api_root" name="Mobile API" parent="base.menu_administration" groups="base.group_system" sequence="90" />
+
+    <menuitem id="menu_mobile_api_devices" name="Devices" parent="menu_mobile_api_root" action="action_mobile_devices" sequence="10" />
+    <menuitem id="menu_mobile_api_auth_sessions" name="Auth Sessions" parent="menu_mobile_api_root" action="action_mobile_auth_sessions" sequence="20" />
+    <menuitem id="menu_mobile_api_change_logs" name="Sync Change Log" parent="menu_mobile_api_root" action="action_mobile_change_logs" sequence="30" />
+    <menuitem id="menu_mobile_api_outbox_failed" name="Outbox Failures" parent="menu_mobile_api_root" action="action_mobile_outbox_failed" sequence="40" />
+    <menuitem id="menu_mobile_api_outbox_all" name="Outbox Receipts" parent="menu_mobile_api_root" action="action_mobile_outbox_receipts" sequence="50" />
+    <menuitem id="menu_mobile_api_push_templates" name="Push Templates" parent="menu_mobile_api_root" action="action_mobile_push_templates" sequence="60" />
+    <menuitem id="menu_mobile_api_rest_logs" name="API Logs" parent="menu_mobile_api_root" action="rest_log.action_rest_log" sequence="70" />
+</odoo>

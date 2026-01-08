@@ -1,0 +1,4 @@
+id,name,model_id:id,group_id:id,perm_read,perm_write,perm_create,perm_unlink
+access_mobile_auth_session_admin,access_mobile_auth_session_admin,model_mobile_auth_session,base.group_system,1,1,1,1
+access_mobile_device_admin,access_mobile_device_admin,model_mobile_device,base.group_system,1,1,1,1
+access_mobile_login_attempt_admin,access_mobile_login_attempt_admin,model_mobile_auth_login_attempt,base.group_system,1,1,1,1

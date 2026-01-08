@@ -1,0 +1,18 @@
+# Python dependencies for OCA rest-framework and auth_jwt
+# Aligns with OCA/rest-framework requirements.txt
+
+a2wsgi>=1.10.6
+apispec
+cerberus
+contextvars
+cryptography
+extendable>=0.0.4
+fastapi>=0.110.0
+parse-accept-language
+pydantic>=2.0.0
+pyjwt
+pyquerystring
+python-multipart
+httpx[http2]
+typing-extensions
+ujson

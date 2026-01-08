@@ -1,0 +1,57 @@
+<odoo>
+    <record id="auth_jwt_validator_mobile" model="auth.jwt.validator">
+        <field name="name">mobile_api</field>
+        <field name="signature_type">secret</field>
+        <field name="secret_algorithm">HS256</field>
+        <field name="audience">mobile</field>
+        <field name="issuer">odoo</field>
+        <field name="user_id_strategy">payload_uid</field>
+        <field name="partner_id_required">False</field>
+    </record>
+
+    <record id="fastapi_endpoint_mobile_api" model="fastapi.endpoint">
+        <field name="name">Mobile API</field>
+        <field name="app">mobile_api</field>
+        <field name="root_path">/api</field>
+        <field name="user_id" ref="base.public_user" />
+        <field name="save_http_session">False</field>
+        <field name="mobile_api_validator_name">mobile_api</field>
+    </record>
+
+    <record id="param_mobile_api_access_ttl" model="ir.config_parameter">
+        <field name="key">mobile_api.jwt.access_ttl_seconds</field>
+        <field name="value">900</field>
+    </record>
+    <record id="param_mobile_api_refresh_ttl" model="ir.config_parameter">
+        <field name="key">mobile_api.jwt.refresh_ttl_seconds</field>
+        <field name="value">2592000</field>
+    </record>
+    <record id="param_mobile_api_rate_limit_max" model="ir.config_parameter">
+        <field name="key">mobile_api.auth.rate_limit.max</field>
+        <field name="value">5</field>
+    </record>
+    <record id="param_mobile_api_rate_limit_window" model="ir.config_parameter">
+        <field name="key">mobile_api.auth.rate_limit.window_seconds</field>
+        <field name="value">900</field>
+    </record>
+    <record id="param_mobile_api_validator_name" model="ir.config_parameter">
+        <field name="key">mobile_api.jwt.validator_name</field>
+        <field name="value">mobile_api</field>
+    </record>
+    <record id="param_mobile_api_barcode_scan_mode" model="ir.config_parameter">
+        <field name="key">mobile_api.barcode.scan_mode</field>
+        <field name="value">camera</field>
+    </record>
+    <record id="param_mobile_api_barcode_keyboard_wedge" model="ir.config_parameter">
+        <field name="key">mobile_api.barcode.keyboard_wedge</field>
+        <field name="value">true</field>
+    </record>
+    <record id="param_mobile_api_offline_max_pending" model="ir.config_parameter">
+        <field name="key">mobile_api.offline.max_pending</field>
+        <field name="value">1000</field>
+    </record>
+    <record id="param_mobile_api_offline_auto_sync" model="ir.config_parameter">
+        <field name="key">mobile_api.offline.auto_sync</field>
+        <field name="value">true</field>
+    </record>
+</odoo>

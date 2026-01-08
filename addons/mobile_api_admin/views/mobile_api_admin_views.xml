@@ -1,0 +1,119 @@
+<odoo>
+    <record id="view_mobile_device_tree" model="ir.ui.view">
+        <field name="name">mobile.device.tree</field>
+        <field name="model">mobile.device</field>
+        <field name="arch" type="xml">
+            <tree>
+                <field name="device_id" />
+                <field name="device_name" />
+                <field name="user_id" />
+                <field name="app_version" />
+                <field name="last_seen_at" />
+                <field name="push_token" />
+                <field name="revoked_at" />
+            </tree>
+        </field>
+    </record>
+
+    <record id="view_mobile_auth_session_tree" model="ir.ui.view">
+        <field name="name">mobile.auth.session.tree</field>
+        <field name="model">mobile.auth.session</field>
+        <field name="arch" type="xml">
+            <tree>
+                <field name="user_id" />
+                <field name="device_id" />
+                <field name="refresh_token_expires_at" />
+                <field name="last_seen_at" />
+                <field name="revoked_at" />
+            </tree>
+        </field>
+    </record>
+
+    <record id="view_mobile_change_log_tree" model="ir.ui.view">
+        <field name="name">mobile.change.log.tree</field>
+        <field name="model">mobile.change.log</field>
+        <field name="arch" type="xml">
+            <tree>
+                <field name="seq" />
+                <field name="model" />
+                <field name="res_id" />
+                <field name="operation" />
+                <field name="write_date" />
+            </tree>
+        </field>
+    </record>
+
+    <record id="view_mobile_outbox_receipt_tree" model="ir.ui.view">
+        <field name="name">mobile.outbox.receipt.tree</field>
+        <field name="model">mobile.outbox.receipt</field>
+        <field name="arch" type="xml">
+            <tree>
+                <field name="event_id" />
+                <field name="device_id" />
+                <field name="status" />
+                <field name="message" />
+                <field name="processed_at" />
+                <field name="retry_requested" />
+            </tree>
+        </field>
+    </record>
+
+    <record id="view_mobile_outbox_receipt_form" model="ir.ui.view">
+        <field name="name">mobile.outbox.receipt.form</field>
+        <field name="model">mobile.outbox.receipt</field>
+        <field name="arch" type="xml">
+            <form>
+                <header>
+                    <button name="action_retry" type="object" string="Retry" class="btn-primary" />
+                </header>
+                <sheet>
+                    <group>
+                        <field name="event_id" />
+                        <field name="device_id" />
+                        <field name="status" />
+                        <field name="message" />
+                        <field name="processed_at" />
+                        <field name="retry_requested" />
+                    </group>
+                </sheet>
+            </form>
+        </field>
+    </record>
+
+    <record id="action_mobile_devices" model="ir.actions.act_window">
+        <field name="name">Devices</field>
+        <field name="res_model">mobile.device</field>
+        <field name="view_mode">tree,form</field>
+    </record>
+
+    <record id="action_mobile_auth_sessions" model="ir.actions.act_window">
+        <field name="name">Auth Sessions</field>
+        <field name="res_model">mobile.auth.session</field>
+        <field name="view_mode">tree,form</field>
+    </record>
+
+    <record id="action_mobile_change_logs" model="ir.actions.act_window">
+        <field name="name">Sync Change Log</field>
+        <field name="res_model">mobile.change.log</field>
+        <field name="view_mode">tree,form</field>
+    </record>
+
+    <record id="action_mobile_outbox_receipts" model="ir.actions.act_window">
+        <field name="name">Outbox Receipts</field>
+        <field name="res_model">mobile.outbox.receipt</field>
+        <field name="view_mode">tree,form</field>
+    </record>
+
+    <record id="action_mobile_outbox_failed" model="ir.actions.act_window">
+        <field name="name">Outbox Failures</field>
+        <field name="res_model">mobile.outbox.receipt</field>
+        <field name="view_mode">tree,form</field>
+        <field name="domain">[("status", "=", "failed")]</field>
+    </record>
+
+    <record id="action_mobile_push_templates" model="ir.actions.act_window">
+        <field name="name">Push Templates</field>
+        <field name="res_model">mobile.push.template</field>
+        <field name="view_mode">tree,form</field>
+    </record>
+</odoo>
