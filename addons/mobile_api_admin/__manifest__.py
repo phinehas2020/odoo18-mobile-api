@@ -12,8 +12,8 @@
     ],
     "data": [
         "security/ir.model.access.csv",
-        "views/mobile_api_admin_menus.xml",
         "views/mobile_api_admin_views.xml",
+        "views/mobile_api_admin_menus.xml",
     ],
     "installable": True,
     "application": False,

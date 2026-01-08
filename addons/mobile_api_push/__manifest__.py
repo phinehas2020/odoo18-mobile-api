@@ -12,6 +12,9 @@
         "security/ir.model.access.csv",
         "data/mobile_api_push_data.xml",
     ],
+    "external_dependencies": {
+        "python": ["httpx"],
+    },
     "installable": True,
     "application": False,
 }
