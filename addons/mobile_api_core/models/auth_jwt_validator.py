@@ -6,11 +6,11 @@ class AuthJwtValidator(models.Model):
 
     user_id_strategy = fields.Selection(
         selection_add=[("payload_uid", "Payload UID")],
-        ondelete={"payload_uid": "set default"},
+        ondelete={"payload_uid": "cascade"},
     )
     partner_id_strategy = fields.Selection(
         selection_add=[("payload_partner_id", "Payload partner id")],
-        ondelete={"payload_partner_id": "set default"},
+        ondelete={"payload_partner_id": "cascade"},
     )
 
     def _get_uid(self, payload):
