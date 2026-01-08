@@ -16,8 +16,7 @@ def _ensure_param(config, key, fallback):
     return value
 
 
-def post_init_hook(cr, registry):
-    env = api.Environment(cr, SUPERUSER_ID, {})
+def post_init_hook(env):
     config = env["ir.config_parameter"].sudo()
 
     jwt_secret = _ensure_param(config, JWT_SECRET_PARAM, secrets.token_urlsafe(64))
