@@ -9,7 +9,7 @@ from odoo.exceptions import AccessDenied
 
 class MobileAuthService:
     def __init__(self, env):
-        self.env = env.sudo()
+        self.env = env
 
     def _config_int(self, key, default):
         value = self.env["ir.config_parameter"].sudo().get_param(key)
