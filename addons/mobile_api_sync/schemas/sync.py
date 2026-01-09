@@ -10,7 +10,7 @@ class SyncChange(BaseModel):
     res_id: int
     operation: str
     write_date: datetime | None = None
-    payload_hint: Optional[str] = None
+    payload_hint: Optional[str | bool] = None
 
 
 class SyncChangesResponse(BaseModel):
