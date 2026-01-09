@@ -127,7 +127,7 @@ class MobileAuthService:
         uid = response.get("uid")
         if not uid:
             return None
-        return self.env["res.users"].browse(uid)
+        return self.env["res.users"].browse(uid).sudo()
 
     def _build_access_token(self, user, device_id, company_id=None):
         validator = self._validator()
