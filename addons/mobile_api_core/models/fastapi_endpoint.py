@@ -39,7 +39,9 @@ class FastapiEndpoint(models.Model):
     def _get_app_dependencies_overrides(self):
         overrides = super()._get_app_dependencies_overrides()
         if self.app == "mobile_api":
+            self.ensure_one()
+            validator_name = self.mobile_api_validator_name
             overrides[
                 auth_jwt_deps.auth_jwt_default_validator_name
-            ] = lambda: self.mobile_api_validator_name
+            ] = lambda validator_name=validator_name: validator_name
         return overrides
