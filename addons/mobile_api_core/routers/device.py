@@ -15,6 +15,14 @@ _logger = logging.getLogger(__name__)
 router = APIRouter(prefix="/device", tags=["device"])
 
 
+def _odoo_datetime(value):
+    """Convert Odoo datetime field to Python datetime or None.
+
+    Odoo returns False for empty datetime fields instead of None.
+    """
+    return value if value else None
+
+
 def _upsert_device(env, payload, user_id):
     try:
         device = (
@@ -60,8 +68,8 @@ def register(
     device = _upsert_device(env, payload, env.user.id)
     return DeviceResponse(
         device_id=device.device_id,
-        last_seen_at=device.last_seen_at,
-        revoked_at=device.revoked_at,
+        last_seen_at=_odoo_datetime(device.last_seen_at),
+        revoked_at=_odoo_datetime(device.revoked_at),
     )
 
 
@@ -73,6 +81,6 @@ def heartbeat(
     device = _upsert_device(env, payload, env.user.id)
     return DeviceResponse(
         device_id=device.device_id,
-        last_seen_at=device.last_seen_at,
-        revoked_at=device.revoked_at,
+        last_seen_at=_odoo_datetime(device.last_seen_at),
+        revoked_at=_odoo_datetime(device.revoked_at),
     )
