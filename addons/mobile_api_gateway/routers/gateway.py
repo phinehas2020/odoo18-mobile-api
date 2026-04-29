@@ -35,6 +35,7 @@ def _raise_http(exc):
         raise HTTPException(status_code=status.HTTP_404_NOT_FOUND, detail=str(exc))
     if isinstance(exc, GatewayBadRequest):
         raise HTTPException(status_code=status.HTTP_400_BAD_REQUEST, detail=str(exc))
+    _logger.exception("mobile_api.gateway.unhandled_error")
     raise exc
 
 

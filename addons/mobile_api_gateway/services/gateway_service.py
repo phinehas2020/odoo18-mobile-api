@@ -154,8 +154,15 @@ class MobileGatewayService:
         domain = self._decode_domain(domain_json)
         domain = self._apply_search_domain(model, domain, search)
         fields = self._requested_fields(model_name, field_csv, detail=False)
-        total = model.search_count(domain)
-        records = model.search(domain, order=order or self._default_order(model), limit=limit, offset=offset)
+        try:
+            total = model.search_count(domain)
+            records = model.search(domain, order=order or self._default_order(model), limit=limit, offset=offset)
+        except AccessError as exc:
+            raise GatewayAccessError(str(exc))
+        except UserError as exc:
+            raise GatewayBadRequest(str(exc))
+        except (TypeError, ValueError) as exc:
+            raise GatewayBadRequest(f"Invalid gateway query for {model_name}: {exc}")
         return {
             "model": model_name,
             "total": total,
@@ -407,7 +414,11 @@ class MobileGatewayService:
             return domain
         fields = self._safe_fields(model._name)
         candidates = []
-        for name in (model._rec_name, "name", "display_name", "default_code", "barcode", "email", "phone"):
+        seen = set()
+        for name in (model._rec_name, "name", "default_code", "barcode", "email", "phone", "display_name"):
+            if not name or name in seen:
+                continue
+            seen.add(name)
             if name in fields and fields[name]["searchable"] and name != "display_name":
                 candidates.append((name, "ilike", search))
         if not candidates:
