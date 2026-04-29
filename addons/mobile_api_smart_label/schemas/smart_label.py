@@ -1,7 +1,17 @@
 from datetime import datetime
-from typing import List, Literal, Optional
+from typing import Annotated, List, Literal, Optional
 
-from pydantic import BaseModel, Field
+from pydantic import BaseModel, BeforeValidator, Field
+
+
+def _coerce_odoo_text(value):
+    # Odoo returns ``False`` for unset Char/Text fields; treat as missing.
+    if value is False or value == "":
+        return None
+    return value
+
+
+OdooText = Annotated[Optional[str], BeforeValidator(_coerce_odoo_text)]
 
 
 class SmartLabelJobItem(BaseModel):
@@ -13,20 +23,20 @@ class SmartLabelJobItem(BaseModel):
     quantity: int
     label_type: str
     requested_at: Optional[datetime] = None
-    requested_by_name: Optional[str] = None
+    requested_by_name: OdooText = None
     device_id: Optional[int] = None
-    device_name: Optional[str] = None
-    result_message: Optional[str] = None
+    device_name: OdooText = None
+    result_message: OdooText = None
     manufacturing_order_id: Optional[int] = None
-    manufacturing_order_name: Optional[str] = None
+    manufacturing_order_name: OdooText = None
 
 
 class SmartLabelDeviceItem(BaseModel):
     id: int
     name: str
     state: str
-    stock_location_name: Optional[str] = None
-    inventory_operation: Optional[str] = None
+    stock_location_name: OdooText = None
+    inventory_operation: OdooText = None
     last_seen_at: Optional[datetime] = None
     active: Optional[bool] = None
 
@@ -34,10 +44,10 @@ class SmartLabelDeviceItem(BaseModel):
 class SmartLabelProductItem(BaseModel):
     id: int
     display_name: str
-    default_code: Optional[str] = None
-    barcode: Optional[str] = None
+    default_code: OdooText = None
+    barcode: OdooText = None
     price: Optional[float] = None
-    uom_name: Optional[str] = None
+    uom_name: OdooText = None
     has_profile: Optional[bool] = None
 
 
@@ -87,12 +97,12 @@ class SmartLabelNativeTarget(BaseModel):
 class SmartLabelManufacturingOrderItem(BaseModel):
     id: int
     name: str
-    state: Optional[str] = None
+    state: OdooText = None
     product_id: Optional[int] = None
-    product_name: Optional[str] = None
+    product_name: OdooText = None
     quantity: Optional[float] = None
     assigned_user_id: Optional[int] = None
-    assigned_user_name: Optional[str] = None
+    assigned_user_name: OdooText = None
 
 
 class SmartLabelOpenManufacturingOrderResponse(BaseModel):
