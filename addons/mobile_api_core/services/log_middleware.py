@@ -1,5 +1,7 @@
 import json
+import logging
 import time
+import uuid
 
 from starlette.middleware.base import BaseHTTPMiddleware
 from starlette.responses import JSONResponse
@@ -8,10 +10,18 @@ from odoo.addons.fastapi.context import odoo_env_ctx
 
 from .log_service import MobileApiLogService
 
+_logger = logging.getLogger(__name__)
+
 
 class MobileApiLogMiddleware(BaseHTTPMiddleware):
     async def dispatch(self, request, call_next):
         start_time = time.monotonic()
+        request_id = (
+            request.headers.get("x-mobile-client-request-id")
+            or request.headers.get("X-Mobile-Client-Request-Id")
+            or str(uuid.uuid4())
+        )
+        request.state.mobile_api_request_id = request_id
         body = await request.body()
         request._body = body
         try:
@@ -40,9 +50,29 @@ class MobileApiLogMiddleware(BaseHTTPMiddleware):
         if env:
             user_id, device_id = self._try_get_token_context(env, request)
 
+        _logger.info(
+            "mobile_api.request.start request_id=%s method=%s path=%s query=%s user_id=%s device_id=%s",
+            request_id,
+            request.method,
+            request.url.path,
+            dict(request.query_params),
+            user_id,
+            device_id,
+        )
+
         try:
             response = await call_next(request)
         except Exception as exc:
+            duration_ms = self._duration_ms(start_time)
+            _logger.exception(
+                "mobile_api.request.exception request_id=%s method=%s path=%s duration_ms=%s user_id=%s device_id=%s",
+                request_id,
+                request.method,
+                request.url.path,
+                duration_ms,
+                user_id,
+                device_id,
+            )
             if log_service:
                 log_service.log_request(
                     request,
@@ -50,18 +80,19 @@ class MobileApiLogMiddleware(BaseHTTPMiddleware):
                     error=str(exc),
                     exception_name=exc.__class__.__name__,
                     exception_message=str(exc),
-                    duration_ms=self._duration_ms(start_time),
+                    duration_ms=duration_ms,
                     user_id=user_id,
                     device_id=device_id,
                 )
             raise
 
         log_entry = None
+        duration_ms = self._duration_ms(start_time)
         if log_service:
             log_entry = log_service.log_request(
                 request,
                 response=response,
-                duration_ms=self._duration_ms(start_time),
+                duration_ms=duration_ms,
                 user_id=user_id,
                 device_id=device_id,
             )
@@ -71,6 +102,19 @@ class MobileApiLogMiddleware(BaseHTTPMiddleware):
             response.headers["X-Rest-Log-Id"] = str(log_entry.id)
             response.headers["X-Rest-Log-Url"] = log_url
             response = self._inject_log_url(response, log_url)
+        response.headers["X-Mobile-Request-Id"] = request_id
+
+        _logger.info(
+            "mobile_api.request.end request_id=%s method=%s path=%s status=%s duration_ms=%s rest_log_id=%s user_id=%s device_id=%s",
+            request_id,
+            request.method,
+            request.url.path,
+            response.status_code,
+            duration_ms,
+            log_entry.id if log_entry else None,
+            user_id,
+            device_id,
+        )
 
         return response
 

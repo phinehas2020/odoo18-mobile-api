@@ -20,6 +20,7 @@ NATIVE_MODULES = {
     "sale": ("sales", "app://sales"),
     "inventory": ("inventory", "app://inventory"),
     "sales": ("sales", "app://sales"),
+    "smart": ("smart", "app://smart-labels"),
 }
 
 
@@ -45,7 +46,7 @@ def menu(
     user = env.user
     items = []
 
-    _logger.info("Menu request - User: %s (id=%s)", user.login, user.id)
+    _logger.info("mobile_api.menu.start user=%s user_id=%s", user.login, user.id)
 
     # Get base URL for web links
     base_url = env["ir.config_parameter"].sudo().get_param("web.base.url", "")
@@ -56,7 +57,7 @@ def menu(
         ("parent_id", "=", False),
     ], order="sequence, id")
 
-    _logger.info("Found %d root menus", len(root_menus))
+    _logger.info("mobile_api.menu.root_count count=%d", len(root_menus))
 
     for menu_item in root_menus:
         module_key = _get_module_key(menu_item) or menu_item.name.lower().replace(" ", "_")
@@ -98,6 +99,6 @@ def menu(
         native=True,
     ))
 
-    _logger.info("Returning %d menu items: %s", len(items), [i.key for i in items])
+    _logger.info("mobile_api.menu.success count=%d keys=%s", len(items), [i.key for i in items])
 
     return MenuResponse(items=items)

@@ -1,5 +1,9 @@
+import logging
+
 from odoo import fields
 from odoo.exceptions import UserError
+
+_logger = logging.getLogger(__name__)
 
 
 class RecordVersionConflict(Exception):
@@ -13,6 +17,13 @@ class MobileInventoryService:
         self.env = env
 
     def list_pickings(self, state=None, mine=False, updated_since=None):
+        _logger.info(
+            "mobile_api.inventory.list_pickings.start user_id=%s state=%s mine=%s updated_since=%s",
+            self.env.user.id,
+            state,
+            mine,
+            updated_since,
+        )
         domain = []
         if state:
             domain.append(("state", "in", state))
@@ -21,17 +32,34 @@ class MobileInventoryService:
         if updated_since:
             domain.append(("write_date", ">=", updated_since))
         pickings = self.env["stock.picking"].search(domain, order="write_date desc")
+        _logger.info(
+            "mobile_api.inventory.list_pickings.success user_id=%s count=%s domain=%s",
+            self.env.user.id,
+            len(pickings),
+            domain,
+        )
         return [self._picking_list_item(picking) for picking in pickings]
 
     def get_picking_detail(self, picking_id):
+        _logger.info("mobile_api.inventory.get_picking_detail.start user_id=%s picking_id=%s", self.env.user.id, picking_id)
         picking = self.env["stock.picking"].browse(picking_id)
         if not picking.exists():
+            _logger.warning("mobile_api.inventory.get_picking_detail.not_found user_id=%s picking_id=%s", self.env.user.id, picking_id)
             return None
+        _logger.info(
+            "mobile_api.inventory.get_picking_detail.success user_id=%s picking_id=%s state=%s lines=%s",
+            self.env.user.id,
+            picking_id,
+            picking.state,
+            len(picking.move_line_ids),
+        )
         return self._picking_detail(picking)
 
     def resolve_barcode(self, code):
+        _logger.info("mobile_api.inventory.resolve_barcode.start user_id=%s code_hash=%s", self.env.user.id, hash(code))
         product = self.env["product.product"].search([("barcode", "=", code)], limit=1)
         if product:
+            _logger.info("mobile_api.inventory.resolve_barcode.product user_id=%s product_id=%s", self.env.user.id, product.id)
             return {
                 "match_type": "product",
                 "id": product.id,
@@ -42,6 +70,7 @@ class MobileInventoryService:
             [("barcode", "=", code)], limit=1
         )
         if location:
+            _logger.info("mobile_api.inventory.resolve_barcode.location user_id=%s location_id=%s", self.env.user.id, location.id)
             return {
                 "match_type": "location",
                 "id": location.id,
@@ -52,6 +81,7 @@ class MobileInventoryService:
             ["|", ("name", "=", code), ("barcode", "=", code)], limit=1
         )
         if lot:
+            _logger.info("mobile_api.inventory.resolve_barcode.lot user_id=%s lot_id=%s", self.env.user.id, lot.id)
             return {
                 "match_type": "lot",
                 "id": lot.id,
@@ -60,12 +90,14 @@ class MobileInventoryService:
             }
         picking = self.env["stock.picking"].search([("name", "=", code)], limit=1)
         if picking:
+            _logger.info("mobile_api.inventory.resolve_barcode.picking user_id=%s picking_id=%s", self.env.user.id, picking.id)
             return {
                 "match_type": "picking",
                 "id": picking.id,
                 "name": picking.name,
                 "actions": [{"action": "open_picking", "label": "Open picking"}],
             }
+        _logger.info("mobile_api.inventory.resolve_barcode.not_found user_id=%s code_hash=%s", self.env.user.id, hash(code))
         return None
 
     def handle_scan(self, payload, device_id, event_id=None):
@@ -89,8 +121,17 @@ class MobileInventoryService:
         return self.validate(picking_id, payload, device_id, event_id)
 
     def scan(self, picking_id, payload, device_id, event_id=None):
+        _logger.info(
+            "mobile_api.inventory.scan.start user_id=%s picking_id=%s device_id=%s event_id=%s code_present=%s",
+            self.env.user.id,
+            picking_id,
+            device_id,
+            event_id,
+            bool(payload.get("code")),
+        )
         picking = self.env["stock.picking"].browse(picking_id)
         if not picking.exists():
+            _logger.warning("mobile_api.inventory.scan.not_found user_id=%s picking_id=%s event_id=%s", self.env.user.id, picking_id, event_id)
             return {
                 "event_id": event_id,
                 "status": "failed",
@@ -101,31 +142,38 @@ class MobileInventoryService:
         receipt = self._get_receipt(event_id)
         if receipt:
             warnings = [receipt.message] if receipt.message else []
+            _logger.info("mobile_api.inventory.scan.idempotent user_id=%s picking_id=%s event_id=%s status=%s", self.env.user.id, picking_id, event_id, receipt.status)
             return self._scan_response(event_id, picking, receipt.status, warnings)
         code = payload.get("code")
         if not code:
             message = "Missing code"
+            _logger.warning("mobile_api.inventory.scan.missing_code user_id=%s picking_id=%s event_id=%s", self.env.user.id, picking_id, event_id)
             self._create_receipt(event_id, device_id, "failed", "stock.move.line", None, message)
             return self._scan_response(event_id, picking, "failed", [message])
         product = self.env["product.product"].search([("barcode", "=", code)], limit=1)
         if not product:
             message = "Unknown barcode"
+            _logger.warning("mobile_api.inventory.scan.unknown_barcode user_id=%s picking_id=%s event_id=%s", self.env.user.id, picking_id, event_id)
             self._create_receipt(event_id, device_id, "failed", "stock.move.line", None, message)
             return self._scan_response(event_id, picking, "failed", [message])
         line = picking.move_line_ids.filtered(lambda l: l.product_id.id == product.id)
         if not line:
             message = "No matching line"
+            _logger.warning("mobile_api.inventory.scan.no_matching_line user_id=%s picking_id=%s product_id=%s event_id=%s", self.env.user.id, picking_id, product.id, event_id)
             self._create_receipt(event_id, device_id, "failed", "stock.move.line", None, message)
             return self._scan_response(event_id, picking, "failed", [message])
         line = line[0]
         qty = payload.get("qty") or 1.0
-        line.write({"qty_done": line.qty_done + qty})
+        line.write({self._done_quantity_field(): self._line_done_qty(line) + qty})
         self._create_receipt(event_id, device_id, "success", "stock.move.line", line.id)
+        _logger.info("mobile_api.inventory.scan.success user_id=%s picking_id=%s line_id=%s product_id=%s qty=%s event_id=%s", self.env.user.id, picking_id, line.id, product.id, qty, event_id)
         return self._scan_response(event_id, picking, "success")
 
     def validate(self, picking_id, payload, device_id, event_id=None):
+        _logger.info("mobile_api.inventory.validate.start user_id=%s picking_id=%s device_id=%s event_id=%s", self.env.user.id, picking_id, device_id, event_id)
         picking = self.env["stock.picking"].browse(picking_id)
         if not picking.exists():
+            _logger.warning("mobile_api.inventory.validate.not_found user_id=%s picking_id=%s event_id=%s", self.env.user.id, picking_id, event_id)
             return {
                 "event_id": event_id,
                 "status": "failed",
@@ -135,6 +183,7 @@ class MobileInventoryService:
         self._check_record_version(picking, record_version)
         receipt = self._get_receipt(event_id)
         if receipt:
+            _logger.info("mobile_api.inventory.validate.idempotent user_id=%s picking_id=%s event_id=%s status=%s", self.env.user.id, picking_id, event_id, receipt.status)
             return {
                 "event_id": event_id,
                 "status": receipt.status,
@@ -145,6 +194,7 @@ class MobileInventoryService:
         try:
             picking.button_validate()
         except UserError as exc:
+            _logger.warning("mobile_api.inventory.validate.user_error user_id=%s picking_id=%s event_id=%s message=%s", self.env.user.id, picking_id, event_id, str(exc))
             self._create_receipt(event_id, device_id, "failed", "stock.picking", picking.id, str(exc))
             return {
                 "event_id": event_id,
@@ -152,6 +202,7 @@ class MobileInventoryService:
                 "message": str(exc),
             }
         self._create_receipt(event_id, device_id, "success", "stock.picking", picking.id)
+        _logger.info("mobile_api.inventory.validate.success user_id=%s picking_id=%s event_id=%s", self.env.user.id, picking_id, event_id)
         return {
             "event_id": event_id,
             "status": "success",
@@ -164,6 +215,7 @@ class MobileInventoryService:
             return
         server_version = self._record_version(picking)
         if server_version != record_version:
+            _logger.warning("mobile_api.inventory.record_version.conflict picking_id=%s client=%s server=%s", picking.id, record_version, server_version)
             raise RecordVersionConflict(server_version)
 
     def _record_version(self, picking):
@@ -241,7 +293,7 @@ class MobileInventoryService:
             "product_id": line.product_id.id,
             "product_name": line.product_id.display_name,
             "barcode": line.product_id.barcode,
-            "qty_done": line.qty_done,
+            "qty_done": self._line_done_qty(line),
             "qty_reserved": qty_reserved,
             "qty_demanded": qty_demanded,
             "uom_name": line.product_uom_id.name if line.product_uom_id else None,
@@ -254,8 +306,18 @@ class MobileInventoryService:
         done = 0.0
         for line in picking.move_line_ids:
             total += getattr(line.move_id, "product_uom_qty", 0.0)
-            done += line.qty_done
+            done += self._line_done_qty(line)
         return {"done": done, "total": total}
+
+    def _done_quantity_field(self):
+        move_line_fields = self.env["stock.move.line"]._fields
+        for field_name in ("qty_done", "quantity_done", "quantity"):
+            if field_name in move_line_fields:
+                return field_name
+        raise AttributeError("stock.move.line has no done quantity field")
+
+    def _line_done_qty(self, line):
+        return getattr(line, self._done_quantity_field(), 0.0) or 0.0
 
     def _location_info(self, location):
         return {

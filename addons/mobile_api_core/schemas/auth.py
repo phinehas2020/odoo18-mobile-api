@@ -36,3 +36,7 @@ class AuthTokensResponse(BaseModel):
     expires_in: int
     user: UserProfile
     companies: List[CompanyInfo]
+
+
+class WebSessionResponse(BaseModel):
+    login_url: str

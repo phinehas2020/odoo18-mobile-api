@@ -46,6 +46,8 @@ class MobileApiLogService:
 
         params = {
             "query": dict(request.query_params),
+            "request_id": getattr(request.state, "mobile_api_request_id", None),
+            "path": request.url.path,
             "user_id": user_id,
             "device_id": device_id,
         }

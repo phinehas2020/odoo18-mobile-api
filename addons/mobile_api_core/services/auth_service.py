@@ -1,10 +1,13 @@
 import hashlib
+import logging
 import secrets
 import uuid
 from datetime import timedelta
 
 from odoo import fields
 from odoo.exceptions import AccessDenied
+
+_logger = logging.getLogger(__name__)
 
 
 class MobileAuthService:
@@ -84,6 +87,7 @@ class MobileAuthService:
         window_seconds = self._rate_limit_window()
         max_attempts = self._rate_limit_max()
         if max_attempts <= 0:
+            _logger.info("mobile_api.auth.rate_limit.disabled login=%s ip=%s", login, ip_address)
             return
         cutoff = fields.Datetime.now() - timedelta(seconds=window_seconds)
         domain = [("success", "=", False), ("attempted_at", ">=", cutoff)]
@@ -92,10 +96,32 @@ class MobileAuthService:
         if ip_address:
             domain.append(("ip_address", "=", ip_address))
         attempts = self.env["mobile.auth.login.attempt"].sudo().search_count(domain)
+        _logger.info(
+            "mobile_api.auth.rate_limit.check login=%s ip=%s attempts=%s max=%s window_seconds=%s",
+            login,
+            ip_address,
+            attempts,
+            max_attempts,
+            window_seconds,
+        )
         if attempts >= max_attempts:
+            _logger.warning(
+                "mobile_api.auth.rate_limit.blocked login=%s ip=%s attempts=%s max=%s",
+                login,
+                ip_address,
+                attempts,
+                max_attempts,
+            )
             raise ValueError("rate_limited")
 
     def record_login_attempt(self, login, ip_address, device_id, success):
+        _logger.info(
+            "mobile_api.auth.login_attempt login=%s ip=%s device_id=%s success=%s",
+            login,
+            ip_address,
+            device_id,
+            success,
+        )
         self.env["mobile.auth.login.attempt"].sudo().create(
             {
                 "login": login,
@@ -106,6 +132,7 @@ class MobileAuthService:
         )
 
     def authenticate(self, db, login, password):
+        _logger.info("mobile_api.auth.authenticate.start db=%s login=%s", db, login)
         try:
             response = (
                 self.env["res.users"]
@@ -121,12 +148,16 @@ class MobileAuthService:
                 )
             )
         except AccessDenied:
+            _logger.warning("mobile_api.auth.authenticate.denied db=%s login=%s", db, login)
             return None
         if not response:
+            _logger.warning("mobile_api.auth.authenticate.empty_response db=%s login=%s", db, login)
             return None
         uid = response.get("uid")
         if not uid:
+            _logger.warning("mobile_api.auth.authenticate.no_uid db=%s login=%s", db, login)
             return None
+        _logger.info("mobile_api.auth.authenticate.success db=%s login=%s uid=%s", db, login, uid)
         return self.env["res.users"].browse(uid).sudo()
 
     def _build_access_token(self, user, device_id, company_id=None):
@@ -149,6 +180,7 @@ class MobileAuthService:
 
     def issue_tokens(self, user, device_id, device_name, company_id=None):
         if self._device_revoked(device_id):
+            _logger.warning("mobile_api.auth.issue_tokens.device_revoked user_id=%s device_id=%s", user.id, device_id)
             raise ValueError("device_revoked")
         company_id = self._resolve_company_id(user, requested_company_id=company_id)
         self._upsert_device(user, device_id, device_name)
@@ -170,9 +202,18 @@ class MobileAuthService:
                 "company_id": company_id,
             }
         )
+        _logger.info(
+            "mobile_api.auth.issue_tokens.success user_id=%s device_id=%s company_id=%s access_ttl=%s refresh_ttl=%s",
+            user.id,
+            device_id,
+            company_id,
+            access_ttl,
+            self._refresh_ttl(),
+        )
         return access_token, refresh_token, access_ttl, company_id
 
     def refresh_tokens(self, refresh_token, device_id, company_id=None):
+        _logger.info("mobile_api.auth.refresh.start device_id=%s requested_company_id=%s", device_id, company_id)
         refresh_hash = self._hash_refresh_token(refresh_token)
         session = (
             self.env["mobile.auth.session"]
@@ -187,10 +228,13 @@ class MobileAuthService:
             )
         )
         if not session:
+            _logger.warning("mobile_api.auth.refresh.no_session device_id=%s", device_id)
             return None
         if self._device_revoked(device_id):
+            _logger.warning("mobile_api.auth.refresh.device_revoked device_id=%s user_id=%s", device_id, session.user_id.id)
             return None
         if session.refresh_token_expires_at and session.refresh_token_expires_at < fields.Datetime.now():
+            _logger.warning("mobile_api.auth.refresh.expired device_id=%s user_id=%s", device_id, session.user_id.id)
             return None
         user = session.user_id
         company_id = self._resolve_company_id(
@@ -211,9 +255,17 @@ class MobileAuthService:
                 "company_id": company_id,
             }
         )
+        _logger.info(
+            "mobile_api.auth.refresh.success device_id=%s user_id=%s company_id=%s access_ttl=%s",
+            device_id,
+            user.id,
+            company_id,
+            access_ttl,
+        )
         return access_token, new_refresh_token, access_ttl, user, company_id
 
     def revoke_refresh_token(self, refresh_token, device_id):
+        _logger.info("mobile_api.auth.logout.start device_id=%s", device_id)
         refresh_hash = self._hash_refresh_token(refresh_token)
         session = (
             self.env["mobile.auth.session"]
@@ -228,11 +280,14 @@ class MobileAuthService:
             )
         )
         if not session:
+            _logger.warning("mobile_api.auth.logout.no_session device_id=%s", device_id)
             return False
         session.write({"revoked_at": fields.Datetime.now()})
+        _logger.info("mobile_api.auth.logout.success device_id=%s user_id=%s", device_id, session.user_id.id)
         return True
 
     def revoke_sessions(self, user_id=None, device_id=None):
+        _logger.info("mobile_api.auth.revoke_sessions.start user_id=%s device_id=%s", user_id, device_id)
         domain = [("revoked_at", "=", False)]
         if user_id:
             domain.append(("user_id", "=", user_id))
@@ -241,10 +296,12 @@ class MobileAuthService:
         sessions = self.env["mobile.auth.session"].sudo().search(domain)
         if sessions:
             sessions.write({"revoked_at": fields.Datetime.now()})
+        _logger.info("mobile_api.auth.revoke_sessions.done count=%s user_id=%s device_id=%s", len(sessions), user_id, device_id)
         return len(sessions)
 
     def _upsert_device(self, user, device_id, device_name):
         if not device_id:
+            _logger.info("mobile_api.auth.upsert_device.skipped user_id=%s reason=missing_device_id", user.id)
             return
         device = (
             self.env["mobile.device"]
@@ -260,5 +317,7 @@ class MobileAuthService:
         }
         if device:
             device.write(values)
+            _logger.info("mobile_api.auth.upsert_device.updated user_id=%s device_id=%s", user.id, device_id)
         else:
             self.env["mobile.device"].sudo().create(values)
+            _logger.info("mobile_api.auth.upsert_device.created user_id=%s device_id=%s", user.id, device_id)

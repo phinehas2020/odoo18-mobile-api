@@ -1,3 +1,4 @@
+import logging
 from typing import Annotated
 
 from fastapi import APIRouter, Depends
@@ -9,6 +10,7 @@ from odoo.addons.fastapi_auth_jwt.dependencies import auth_jwt_authenticated_odo
 from ..schemas.settings import SettingsResponse
 
 router = APIRouter(tags=["core"])
+_logger = logging.getLogger(__name__)
 
 
 @router.get("/settings", response_model=SettingsResponse)
@@ -24,4 +26,10 @@ def settings(
         "max_pending": config.get_param("mobile_api.offline.max_pending", "1000"),
         "auto_sync": config.get_param("mobile_api.offline.auto_sync", "true"),
     }
+    _logger.info(
+        "mobile_api.core.settings user_id=%s barcode=%s offline=%s",
+        env.user.id,
+        barcode,
+        offline,
+    )
     return SettingsResponse(barcode=barcode, offline=offline)
