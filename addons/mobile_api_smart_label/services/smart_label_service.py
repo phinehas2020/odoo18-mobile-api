@@ -252,28 +252,36 @@ class MobileSmartLabelService:
     def job_item(self, job):
         return {
             "id": job.id,
-            "name": job.name,
-            "state": job.state,
+            "name": self._text_or_none(job.name) or f"Job {job.id}",
+            "state": self._text_or_none(job.state) or "unknown",
             "product_id": job.product_id.id if job.product_id else None,
-            "product_name": job.product_id.display_name if job.product_id else "Product",
+            "product_name": (self._text_or_none(job.product_id.display_name) or "Product")
+            if job.product_id
+            else "Product",
             "quantity": job.quantity,
-            "label_type": job.label_type,
+            "label_type": self._text_or_none(job.label_type) or "both",
             "requested_at": job.requested_at,
-            "requested_by_name": job.requested_by.display_name if job.requested_by else None,
+            "requested_by_name": self._text_or_none(job.requested_by.display_name)
+            if job.requested_by
+            else None,
             "device_id": job.device_id.id if job.device_id else None,
-            "device_name": job.device_id.name if job.device_id else None,
-            "result_message": job.result_message,
+            "device_name": self._text_or_none(job.device_id.name) if job.device_id else None,
+            "result_message": self._text_or_none(job.result_message),
             "manufacturing_order_id": job.manufacturing_order_id.id if job.manufacturing_order_id else None,
-            "manufacturing_order_name": job.manufacturing_order_id.name if job.manufacturing_order_id else None,
+            "manufacturing_order_name": self._text_or_none(job.manufacturing_order_id.name)
+            if job.manufacturing_order_id
+            else None,
         }
 
     def device_item(self, device):
         return {
             "id": device.id,
-            "name": device.name,
-            "state": device.state,
-            "stock_location_name": device.stock_location_id.display_name if device.stock_location_id else None,
-            "inventory_operation": device.inventory_operation,
+            "name": self._text_or_none(device.name) or f"Device {device.id}",
+            "state": self._text_or_none(device.state) or "unknown",
+            "stock_location_name": self._text_or_none(device.stock_location_id.display_name)
+            if device.stock_location_id
+            else None,
+            "inventory_operation": self._text_or_none(device.inventory_operation),
             "last_seen_at": device.last_seen_at,
             "active": device.active,
         }
@@ -281,26 +289,35 @@ class MobileSmartLabelService:
     def manufacturing_order_item(self, production):
         return {
             "id": production.id,
-            "name": production.name,
-            "state": production.state,
+            "name": self._text_or_none(production.name) or f"MO {production.id}",
+            "state": self._text_or_none(production.state),
             "product_id": production.product_id.id if production.product_id else None,
-            "product_name": production.product_id.display_name if production.product_id else None,
+            "product_name": self._text_or_none(production.product_id.display_name)
+            if production.product_id
+            else None,
             "quantity": production.product_qty,
             "assigned_user_id": production.user_id.id if production.user_id else None,
-            "assigned_user_name": production.user_id.display_name if production.user_id else None,
+            "assigned_user_name": self._text_or_none(production.user_id.display_name)
+            if production.user_id
+            else None,
         }
 
     def product_item(self, product, profile_model):
         has_profile = bool(profile_model.search_count([("product_id", "=", product.id)]))
         return {
             "id": product.id,
-            "display_name": product.display_name,
-            "default_code": product.default_code,
-            "barcode": product.barcode,
+            "display_name": self._text_or_none(product.display_name) or f"Product {product.id}",
+            "default_code": self._text_or_none(product.default_code),
+            "barcode": self._text_or_none(product.barcode),
             "price": product.lst_price,
-            "uom_name": product.uom_id.name if product.uom_id else None,
+            "uom_name": self._text_or_none(product.uom_id.name) if product.uom_id else None,
             "has_profile": has_profile,
         }
+
+    def _text_or_none(self, value):
+        if isinstance(value, str) and value:
+            return value
+        return None
 
     def _job(self, job_id):
         return self._find_record("smart.label.job", job_id, "Smart label job")

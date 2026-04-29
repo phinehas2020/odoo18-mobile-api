@@ -105,6 +105,16 @@ class TestMobileApiSmartLabelWorkflows(FastAPITransactionCase):
         product_ids = [item["id"] for item in payload]
         self.assertIn(product.id, product_ids)
 
+    def test_product_search_serializes_missing_optional_strings_as_null(self):
+        with self._client() as client:
+            response = client.get("/v1/smart-label/products?query=without%20barcode&limit=20")
+        self.assertEqual(response.status_code, 200, response.text)
+        payload = response.json()
+        product_items = [item for item in payload if item["id"] == self.no_barcode_product.id]
+        self.assertTrue(product_items)
+        self.assertIsNone(product_items[0]["default_code"])
+        self.assertIsNone(product_items[0]["barcode"])
+
     def test_cancel_and_reset_job_call_object_methods(self):
         action_product = self.env["product.product"].create(
             {
