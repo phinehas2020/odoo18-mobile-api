@@ -64,16 +64,40 @@ class MobileSmartLabelService:
             hash(query),
             limit,
         )
-        domain = []
+        product_model = self.env["product.product"]
+        products = product_model.browse()
+        order = "name, id" if "name" in product_model._fields else "id"
         if query:
-            domain = [
-                "|",
-                "|",
-                ("display_name", "ilike", query),
-                ("default_code", "ilike", query),
-                ("barcode", "ilike", query),
+            search_fields = [
+                field_name
+                for field_name in ("default_code", "barcode", "name")
+                if field_name in product_model._fields
             ]
-        products = self.env["product.product"].search(domain, order="display_name, id", limit=limit)
+            for field_name in search_fields:
+                if len(products) >= limit:
+                    break
+                domain = [(field_name, "ilike", query)]
+                if products:
+                    domain.append(("id", "not in", products.ids))
+                products |= product_model.search(
+                    domain,
+                    order=order,
+                    limit=limit - len(products),
+                )
+
+            if len(products) < limit:
+                matches = product_model.name_search(
+                    name=query,
+                    operator="ilike",
+                    limit=limit,
+                )
+                missing_ids = [record_id for record_id, _name in matches if record_id not in products.ids]
+                if missing_ids:
+                    products |= product_model.browse(missing_ids[: limit - len(products)])
+        else:
+            products = product_model.search([], order=order, limit=limit)
+
+        products = products[:limit]
         profile_model = self.env["smart.label.profile"]
         _logger.info(
             "mobile_api.smart_label.search_products.success user_id=%s count=%s",

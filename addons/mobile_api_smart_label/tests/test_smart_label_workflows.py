@@ -89,6 +89,22 @@ class TestMobileApiSmartLabelWorkflows(FastAPITransactionCase):
         self.assertEqual(response.status_code, 400, response.text)
         self.assertIn("Enter a barcode", response.json()["detail"])
 
+    def test_product_search_uses_sql_safe_fields(self):
+        product = self.env["product.product"].create(
+            {
+                "name": "Sifted Mobile Flour",
+                "default_code": "SIFTED-MOBILE",
+                "barcode": "998877665544",
+                "lst_price": 7.95,
+            }
+        )
+        with self._client() as client:
+            response = client.get("/v1/smart-label/products?query=sifted&limit=20")
+        self.assertEqual(response.status_code, 200, response.text)
+        payload = response.json()
+        product_ids = [item["id"] for item in payload]
+        self.assertIn(product.id, product_ids)
+
     def test_cancel_and_reset_job_call_object_methods(self):
         action_product = self.env["product.product"].create(
             {
