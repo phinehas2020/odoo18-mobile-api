@@ -70,3 +70,11 @@ Smart Labels no longer needs to be the whole API idea. It can use generic gatewa
 - `/gateway/models/product.product/records?search=einkorn`
 
 For queueing a label job, keep a workflow adapter such as `/smart-label/jobs` because it runs business logic from `smart.label.print.wizard` and should not be reduced to raw record creation.
+
+When `mobile_api_smart_label` is installed, `/gateway/manifest` also advertises the native Smart Label workflow links:
+
+- `POST /api/v1/smart-label/jobs`
+- `POST /api/v1/smart-label/jobs/{job_id}/cancel`
+- `POST /api/v1/smart-label/jobs/{job_id}/reset`
+- `POST /api/v1/smart-label/jobs/{job_id}/open-manufacturing-order`
+- `POST /api/v1/smart-label/devices/{device_id}/rotate-token`

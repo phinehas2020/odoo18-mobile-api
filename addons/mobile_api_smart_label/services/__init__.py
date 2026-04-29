@@ -1,0 +1,1 @@
+from .smart_label_service import MobileSmartLabelService

@@ -127,12 +127,29 @@ class MobileGatewayService:
         ]
         for key, label, model, route in known:
             if model in by_model:
+                links = [self._link("records", f"/api/v1/gateway/models/{model}/records")]
+                if key == "smart-labels" and self._module_installed("mobile_api_smart_label"):
+                    links.extend([
+                        self._link("queue_job", "/api/v1/smart-label/jobs", "POST"),
+                        self._link("cancel_job", "/api/v1/smart-label/jobs/{job_id}/cancel", "POST"),
+                        self._link("reset_job", "/api/v1/smart-label/jobs/{job_id}/reset", "POST"),
+                        self._link(
+                            "open_manufacturing_order",
+                            "/api/v1/smart-label/jobs/{job_id}/open-manufacturing-order",
+                            "POST",
+                        ),
+                        self._link(
+                            "rotate_device_token",
+                            "/api/v1/smart-label/devices/{device_id}/rotate-token",
+                            "POST",
+                        ),
+                    ])
                 workflows.append({
                     "key": key,
                     "label": label,
                     "model": model,
                     "native_route": route,
-                    "links": [self._link("records", f"/api/v1/gateway/models/{model}/records")],
+                    "links": links,
                 })
         return workflows
 
@@ -441,6 +458,13 @@ class MobileGatewayService:
         if not modules:
             return None
         return modules.split(",")[0].strip()
+
+    def _module_installed(self, module_name):
+        return bool(
+            self.env["ir.module.module"]
+            .sudo()
+            .search([("name", "=", module_name), ("state", "=", "installed")], limit=1)
+        )
 
     def _configured_set(self, key):
         value = self.config.get_param(key, "") or ""
