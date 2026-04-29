@@ -66,7 +66,6 @@ class MobileSmartLabelService:
         )
         product_model = self.env["product.product"]
         products = product_model.browse()
-        order = "name, id" if "name" in product_model._fields else "id"
         if query:
             search_fields = [
                 field_name
@@ -79,23 +78,21 @@ class MobileSmartLabelService:
                 domain = [(field_name, "ilike", query)]
                 if products:
                     domain.append(("id", "not in", products.ids))
-                products |= product_model.search(
-                    domain,
-                    order=order,
-                    limit=limit - len(products),
-                )
-
-            if len(products) < limit:
-                matches = product_model.name_search(
-                    name=query,
-                    operator="ilike",
-                    limit=limit,
-                )
-                missing_ids = [record_id for record_id, _name in matches if record_id not in products.ids]
-                if missing_ids:
-                    products |= product_model.browse(missing_ids[: limit - len(products)])
+                try:
+                    products |= product_model.search(
+                        domain,
+                        order="id",
+                        limit=limit - len(products),
+                    )
+                except ValueError as exc:
+                    _logger.warning(
+                        "mobile_api.smart_label.search_products.field_skipped user_id=%s field=%s message=%s",
+                        self.env.user.id,
+                        field_name,
+                        str(exc),
+                    )
         else:
-            products = product_model.search([], order=order, limit=limit)
+            products = product_model.search([], order="id", limit=limit)
 
         products = products[:limit]
         profile_model = self.env["smart.label.profile"]
