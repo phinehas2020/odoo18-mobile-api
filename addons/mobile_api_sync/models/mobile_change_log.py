@@ -16,10 +16,11 @@ class MobileChangeLog(models.Model):
     write_date = fields.Datetime(index=True)
     payload_hint = fields.Char()
 
-    @api.model
-    def create(self, vals):
-        if not vals.get("seq"):
-            vals["seq"] = (
-                self.env["ir.sequence"].sudo().next_by_code("mobile.change.log") or 0
-            )
-        return super().create(vals)
+    @api.model_create_multi
+    def create(self, vals_list):
+        for vals in vals_list:
+            if not vals.get("seq"):
+                vals["seq"] = (
+                    self.env["ir.sequence"].sudo().next_by_code("mobile.change.log") or 0
+                )
+        return super().create(vals_list)

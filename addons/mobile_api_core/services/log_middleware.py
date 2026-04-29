@@ -15,6 +15,9 @@ _logger = logging.getLogger(__name__)
 
 class MobileApiLogMiddleware(BaseHTTPMiddleware):
     async def dispatch(self, request, call_next):
+        if request.url.path.endswith(("/docs", "/openapi.json", "/redoc")):
+            return await call_next(request)
+
         start_time = time.monotonic()
         request_id = (
             request.headers.get("x-mobile-client-request-id")
