@@ -18,9 +18,14 @@ router = APIRouter(tags=["core"])
 NATIVE_MODULES = {
     "stock": ("inventory", "app://inventory"),
     "sale": ("sales", "app://sales"),
+    "mrp": ("manufacturing", "app://manufacturing"),
     "inventory": ("inventory", "app://inventory"),
     "sales": ("sales", "app://sales"),
+    "manufacturing": ("manufacturing", "app://manufacturing"),
+    "barcode": ("barcode", "app://barcode"),
     "smart": ("smart", "app://smart-labels"),
+    "smart_label": ("smart-labels", "app://smart-labels"),
+    "hgm_smart_label_printer": ("smart-labels", "app://smart-labels"),
 }
 
 

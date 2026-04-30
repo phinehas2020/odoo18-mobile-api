@@ -144,6 +144,11 @@ class MobileGatewayService:
                             "POST",
                         ),
                     ])
+                if key == "manufacturing" and self._module_installed("mobile_api_manufacturing"):
+                    links.extend([
+                        self._link("attention_orders", "/api/v1/manufacturing/orders?attention=due_or_late"),
+                        self._link("order_detail", "/api/v1/manufacturing/orders/{order_id}"),
+                    ])
                 workflows.append({
                     "key": key,
                     "label": label,

@@ -1,0 +1,2 @@
+from .manufacturing_service import MobileManufacturingService
+
