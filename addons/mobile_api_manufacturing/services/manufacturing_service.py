@@ -87,8 +87,8 @@ class MobileManufacturingService:
             "uom_name": self._text_or_none(production.product_uom_id.name)
             if production.product_uom_id
             else None,
-            "planned_date": production.date_start,
-            "deadline": production.date_deadline,
+            "planned_date": self._datetime_or_none(production.date_start),
+            "deadline": self._datetime_or_none(production.date_deadline),
             "assigned_user_name": self._text_or_none(production.user_id.display_name)
             if production.user_id
             else None,
@@ -102,8 +102,12 @@ class MobileManufacturingService:
             "product_name": self._text_or_none(move.product_id.display_name)
             or f"Product {move.product_id.id if move.product_id else move.id}",
             "quantity": move.product_uom_qty,
-            "reserved_quantity": getattr(move, "reserved_availability", None),
-            "done_quantity": getattr(move, "quantity_done", None),
+            "reserved_quantity": self._number_or_none(
+                getattr(move, "reserved_availability", None)
+            ),
+            "done_quantity": self._number_or_none(
+                getattr(move, "quantity_done", None)
+            ),
             "uom_name": self._text_or_none(move.product_uom.name)
             if move.product_uom
             else None,
@@ -127,3 +131,11 @@ class MobileManufacturingService:
         if isinstance(value, str) and value:
             return value
         return None
+
+    def _datetime_or_none(self, value):
+        return value or None
+
+    def _number_or_none(self, value):
+        if value is False or value is None:
+            return None
+        return value
