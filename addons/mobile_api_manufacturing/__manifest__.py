@@ -1,7 +1,7 @@
 {
     "name": "Mobile API Manufacturing",
     "summary": "Manufacturing order endpoints for the mobile app",
-    "version": "18.0.1.1.0",
+    "version": "18.0.1.2.0",
     "category": "Manufacturing",
     "license": "LGPL-3",
     "depends": [

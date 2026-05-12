@@ -9,6 +9,7 @@ from odoo.exceptions import AccessError, MissingError, UserError, ValidationErro
 from odoo.addons.fastapi_auth_jwt.dependencies import auth_jwt_authenticated_odoo_env
 
 from ..schemas.manufacturing import (
+    ManufacturingAssigneeItem,
     ManufacturingOrderCreateRequest,
     ManufacturingOrderCreateResponse,
     ManufacturingOrderDetail,
@@ -97,6 +98,26 @@ def orders(
     return [ManufacturingOrderItem(**item) for item in items]
 
 
+@router.get("/assignees", response_model=List[ManufacturingAssigneeItem])
+def assignees(
+    env: Annotated[Environment, Depends(auth_jwt_authenticated_odoo_env)],
+    limit: int = Query(100, ge=1, le=200),
+) -> List[ManufacturingAssigneeItem]:
+    service = MobileManufacturingService(env)
+    _logger.info(
+        "mobile_api.manufacturing.assignees.route.start user_id=%s limit=%s",
+        env.user.id,
+        limit,
+    )
+    items = service.list_assignees(limit=limit)
+    _logger.info(
+        "mobile_api.manufacturing.assignees.route.success user_id=%s count=%s",
+        env.user.id,
+        len(items),
+    )
+    return [ManufacturingAssigneeItem(**item) for item in items]
+
+
 @router.post("/orders", response_model=ManufacturingOrderCreateResponse)
 def create_order(
     payload: ManufacturingOrderCreateRequest,
@@ -104,15 +125,22 @@ def create_order(
 ) -> ManufacturingOrderCreateResponse:
     service = MobileManufacturingService(env)
     _logger.info(
-        "mobile_api.manufacturing.create.route.start user_id=%s product_id=%s quantity=%s",
+        "mobile_api.manufacturing.create.route.start user_id=%s product_id=%s quantity=%s assigned_user_id=%s",
         env.user.id,
         payload.product_id,
         payload.quantity,
+        payload.assigned_user_id,
     )
     try:
         order = service.create_order(_payload_dict(payload))
     except Exception as exc:
-        _raise_http(exc, "create", env.user.id, product_id=payload.product_id)
+        _raise_http(
+            exc,
+            "create",
+            env.user.id,
+            product_id=payload.product_id,
+            assigned_user_id=payload.assigned_user_id,
+        )
     if not order:
         raise HTTPException(status_code=status.HTTP_404_NOT_FOUND, detail="Product not found")
     _logger.info(

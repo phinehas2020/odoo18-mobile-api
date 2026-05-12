@@ -28,6 +28,13 @@ class ManufacturingOrderItem(BaseModel):
     attention_reason: Optional[str] = None
 
 
+class ManufacturingAssigneeItem(BaseModel):
+    id: int
+    name: str
+    login: Optional[str] = None
+    email: Optional[str] = None
+
+
 class ManufacturingOrderDetail(ManufacturingOrderItem):
     origin: Optional[str] = None
     bom_name: Optional[str] = None
@@ -37,6 +44,7 @@ class ManufacturingOrderDetail(ManufacturingOrderItem):
 class ManufacturingOrderCreateRequest(BaseModel):
     product_id: int
     quantity: float = Field(default=1, gt=0)
+    assigned_user_id: Optional[int] = None
     deadline: Optional[datetime] = None
     notes: Optional[str] = Field(default=None, max_length=2000)
 

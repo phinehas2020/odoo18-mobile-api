@@ -1,6 +1,7 @@
 import logging
 
 from odoo import fields
+from odoo.exceptions import AccessError, MissingError
 
 _logger = logging.getLogger(__name__)
 
@@ -37,6 +38,30 @@ class MobileManufacturingService:
             domain,
         )
         return [self.order_item(production) for production in productions]
+
+    def list_assignees(self, limit=100):
+        group = self.env.ref("mrp.group_mrp_user", raise_if_not_found=False)
+        domain = [("active", "=", True), ("share", "=", False)]
+        if group:
+            domain.append(("groups_id", "in", [group.id]))
+
+        _logger.info(
+            "mobile_api.manufacturing.list_assignees.start user_id=%s limit=%s group_present=%s",
+            self.env.user.id,
+            limit,
+            bool(group),
+        )
+        users = self.env["res.users"].search(
+            domain,
+            order="name asc, id asc",
+            limit=max(min(limit or 100, 200), 1),
+        )
+        _logger.info(
+            "mobile_api.manufacturing.list_assignees.success user_id=%s count=%s",
+            self.env.user.id,
+            len(users),
+        )
+        return [self.assignee_item(user) for user in users]
 
     def get_order(self, order_id):
         _logger.info(
@@ -85,23 +110,25 @@ class MobileManufacturingService:
             )
             return None
 
+        assigned_user = self._assigned_user(payload.get("assigned_user_id"))
         quantity = max(float(payload.get("quantity") or 1), 1.0)
         values = {
             "product_id": product.id,
             "product_qty": quantity,
             "product_uom_id": product.uom_id.id,
             "date_deadline": payload.get("deadline") or False,
-            "user_id": self.env.user.id,
+            "user_id": assigned_user.id,
         }
         notes = self._text_or_none(payload.get("notes"))
         if notes:
             values["origin"] = notes[:200]
 
         _logger.info(
-            "mobile_api.manufacturing.create_order.start user_id=%s product_id=%s quantity=%s deadline_present=%s",
+            "mobile_api.manufacturing.create_order.start user_id=%s product_id=%s quantity=%s assigned_user_id=%s deadline_present=%s",
             self.env.user.id,
             product.id,
             quantity,
+            assigned_user.id,
             bool(values["date_deadline"]),
         )
         production = self.env["mrp.production"].create(values)
@@ -171,6 +198,16 @@ class MobileManufacturingService:
             "attention_reason": self._attention_reason(production),
         }
 
+    def assignee_item(self, user):
+        return {
+            "id": user.id,
+            "name": self._text_or_none(user.display_name)
+            or self._text_or_none(user.name)
+            or f"User {user.id}",
+            "login": self._text_or_none(user.login),
+            "email": self._text_or_none(user.email),
+        }
+
     def component_item(self, move):
         return {
             "id": move.id,
@@ -202,6 +239,21 @@ class MobileManufacturingService:
         if planned_date and planned_date.date() == now.date():
             return "planned_today"
         return None
+
+    def _assigned_user(self, user_id):
+        if not user_id:
+            return self.env.user
+
+        user = self.env["res.users"].browse(user_id).exists()
+        if not user:
+            raise MissingError("Assigned employee was not found.")
+        if not user.active or user.share:
+            raise AccessError("Assigned employee must be an active internal Odoo user.")
+
+        group = self.env.ref("mrp.group_mrp_user", raise_if_not_found=False)
+        if group and group not in user.groups_id:
+            raise AccessError("Assigned employee must have manufacturing access.")
+        return user
 
     def _text_or_none(self, value):
         if isinstance(value, str) and value:

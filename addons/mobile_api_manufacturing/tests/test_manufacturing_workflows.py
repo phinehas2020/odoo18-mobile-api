@@ -26,6 +26,14 @@ class TestMobileApiManufacturingWorkflows(FastAPITransactionCase):
                 "groups_id": [(6, 0, groups)],
             }
         )
+        cls.assigned_user = cls.env["res.users"].create(
+            {
+                "name": "Assigned Work Order Employee",
+                "login": "assigned.work.order.employee",
+                "email": "assigned.work.order.employee@example.com",
+                "groups_id": [(6, 0, groups)],
+            }
+        )
         cls.product = cls.env["product.product"].create(
             {
                 "name": "Mobile Manufacturing Product",
@@ -87,6 +95,17 @@ class TestMobileApiManufacturingWorkflows(FastAPITransactionCase):
         today_item = next(item for item in payload if item["id"] == self.today_order.id)
         self.assertIn(today_item["attention_reason"], ["due_today", "planned_today"])
 
+    def test_assignees_returns_manufacturing_users(self):
+        with self._client() as client:
+            response = client.get("/v1/manufacturing/assignees?limit=50")
+        self.assertEqual(response.status_code, 200, response.text)
+        payload = response.json()
+        ids = [item["id"] for item in payload]
+        self.assertIn(self.user.id, ids)
+        self.assertIn(self.assigned_user.id, ids)
+        item = next(item for item in payload if item["id"] == self.assigned_user.id)
+        self.assertEqual(item["name"], self.assigned_user.display_name)
+
     def test_order_detail_returns_components_list_shape(self):
         with self._client() as client:
             response = client.get(f"/v1/manufacturing/orders/{self.attention_order.id}")
@@ -104,6 +123,7 @@ class TestMobileApiManufacturingWorkflows(FastAPITransactionCase):
                 json={
                     "product_id": self.product.id,
                     "quantity": 3,
+                    "assigned_user_id": self.assigned_user.id,
                     "deadline": deadline.isoformat(),
                     "notes": "Mobile work order note",
                 },
@@ -113,14 +133,26 @@ class TestMobileApiManufacturingWorkflows(FastAPITransactionCase):
         order = payload["order"]
         self.assertEqual(order["product_id"], self.product.id)
         self.assertEqual(order["quantity"], 3)
-        self.assertEqual(order["assigned_user_name"], self.user.display_name)
+        self.assertEqual(order["assigned_user_name"], self.assigned_user.display_name)
 
         production = self.env["mrp.production"].browse(order["id"]).exists()
         self.assertTrue(production)
         self.assertEqual(production.product_id, self.product)
         self.assertEqual(production.product_qty, 3)
-        self.assertEqual(production.user_id, self.user)
+        self.assertEqual(production.user_id, self.assigned_user)
         self.assertEqual(production.origin, "Mobile work order note")
+
+    def test_create_order_returns_404_for_missing_assignee(self):
+        with self._client() as client:
+            response = client.post(
+                "/v1/manufacturing/orders",
+                json={
+                    "product_id": self.product.id,
+                    "quantity": 1,
+                    "assigned_user_id": 99999999,
+                },
+            )
+        self.assertEqual(response.status_code, 404, response.text)
 
     def test_complete_order_marks_mobile_work_order_done(self):
         order = self.env["mrp.production"].create(
