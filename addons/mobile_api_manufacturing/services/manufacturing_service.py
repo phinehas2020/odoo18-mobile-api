@@ -90,13 +90,25 @@ class MobileManufacturingService:
                     for move in production.move_raw_ids
                     if move.product_id
                 ],
+                "workorders": [
+                    self.workorder_item(workorder)
+                    for workorder in production.workorder_ids.sorted("id")
+                ],
+                "quality_checks": [
+                    self.quality_check_item(check)
+                    for check in production.quality_check_ids.sorted("point_sequence")
+                ]
+                if hasattr(production, "quality_check_ids")
+                else [],
             }
         )
         _logger.info(
-            "mobile_api.manufacturing.get_order.success user_id=%s order_id=%s components=%s",
+            "mobile_api.manufacturing.get_order.success user_id=%s order_id=%s components=%s workorders=%s quality_checks=%s",
             self.env.user.id,
             order_id,
             len(item["components"]),
+            len(item["workorders"]),
+            len(item["quality_checks"]),
         )
         return item
 
@@ -144,15 +156,83 @@ class MobileManufacturingService:
         )
         return self.order_item(production)
 
+    def plan_order(self, order_id):
+        production = self._production(order_id)
+        _logger.info(
+            "mobile_api.manufacturing.plan_order.start user_id=%s order_id=%s state=%s is_planned=%s",
+            self.env.user.id,
+            production.id,
+            production.state,
+            production.is_planned,
+        )
+        production.button_plan()
+        _logger.info(
+            "mobile_api.manufacturing.plan_order.success user_id=%s order_id=%s workorders=%s",
+            self.env.user.id,
+            production.id,
+            len(production.workorder_ids),
+        )
+        return self.get_order(production.id)
+
+    def start_workorder(self, workorder_id):
+        workorder = self._workorder(workorder_id)
+        _logger.info(
+            "mobile_api.manufacturing.start_workorder.start user_id=%s workorder_id=%s state=%s",
+            self.env.user.id,
+            workorder.id,
+            workorder.state,
+        )
+        workorder.button_start(raise_on_invalid_state=True)
+        return self.get_order(workorder.production_id.id)
+
+    def stop_workorder(self, workorder_id):
+        workorder = self._workorder(workorder_id)
+        _logger.info(
+            "mobile_api.manufacturing.stop_workorder.start user_id=%s workorder_id=%s state=%s",
+            self.env.user.id,
+            workorder.id,
+            workorder.state,
+        )
+        workorder.button_pending()
+        return self.get_order(workorder.production_id.id)
+
+    def finish_workorder(self, workorder_id):
+        workorder = self._workorder(workorder_id)
+        _logger.info(
+            "mobile_api.manufacturing.finish_workorder.start user_id=%s workorder_id=%s state=%s",
+            self.env.user.id,
+            workorder.id,
+            workorder.state,
+        )
+        workorder.button_finish()
+        return self.get_order(workorder.production_id.id)
+
+    def pass_quality_check(self, check_id, notes=None):
+        check = self._quality_check(check_id)
+        self._write_quality_notes(check, notes)
+        _logger.info(
+            "mobile_api.manufacturing.pass_quality_check.start user_id=%s check_id=%s state=%s",
+            self.env.user.id,
+            check.id,
+            check.state,
+        )
+        check.action_pass()
+        return self.get_order(check.production_id.id)
+
+    def fail_quality_check(self, check_id, notes=None):
+        check = self._quality_check(check_id)
+        self._write_quality_notes(check, notes)
+        _logger.info(
+            "mobile_api.manufacturing.fail_quality_check.start user_id=%s check_id=%s state=%s",
+            self.env.user.id,
+            check.id,
+            check.state,
+        )
+        check.action_fail()
+        return self.get_order(check.production_id.id)
+
     def complete_order(self, order_id):
-        production = self.env["mrp.production"].browse(order_id).exists()
-        if not production:
-            _logger.warning(
-                "mobile_api.manufacturing.complete_order.not_found user_id=%s order_id=%s",
-                self.env.user.id,
-                order_id,
-            )
-            return None
+        production = self._production(order_id)
 
         _logger.info(
             "mobile_api.manufacturing.complete_order.start user_id=%s order_id=%s state=%s",
@@ -196,6 +276,11 @@ class MobileManufacturingService:
             "assigned_user_name": self._text_or_none(production.user_id.display_name)
             if production.user_id
             else None,
+            "is_planned": bool(production.is_planned),
+            "quality_state": self._text_or_none(getattr(production, "quality_state", None)),
+            "quality_check_count": len(production.quality_check_ids)
+            if hasattr(production, "quality_check_ids")
+            else 0,
             "attention_reason": self._attention_reason(production),
         }
 
@@ -207,6 +292,48 @@ class MobileManufacturingService:
             or f"User {user.id}",
             "login": self._text_or_none(user.login),
             "email": self._text_or_none(user.email),
+        }
+
+    def workorder_item(self, workorder):
+        return {
+            "id": workorder.id,
+            "name": self._text_or_none(workorder.name) or f"Step {workorder.id}",
+            "state": self._text_or_none(workorder.state) or "unknown",
+            "workcenter_name": self._text_or_none(workorder.workcenter_id.display_name)
+            if workorder.workcenter_id
+            else None,
+            "product_name": self._text_or_none(workorder.product_id.display_name)
+            if workorder.product_id
+            else None,
+            "quantity": self._number_or_none(getattr(workorder, "qty_production", None)),
+            "quantity_remaining": self._number_or_none(
+                getattr(workorder, "qty_remaining", None)
+            ),
+            "expected_duration_minutes": self._number_or_none(
+                getattr(workorder, "duration_expected", None)
+            ),
+            "real_duration_minutes": self._number_or_none(
+                getattr(workorder, "duration", None)
+            ),
+            "is_user_working": bool(getattr(workorder, "is_user_working", False)),
+            "working_state": self._text_or_none(getattr(workorder, "working_state", None)),
+            "started_at": self._datetime_or_none(workorder.date_start),
+            "finished_at": self._datetime_or_none(workorder.date_finished),
+        }
+
+    def quality_check_item(self, check):
+        return {
+            "id": check.id,
+            "name": self._text_or_none(check.name) or f"Quality Check {check.id}",
+            "state": self._text_or_none(check.state) or "pending",
+            "control_type": self._text_or_none(check.control_type),
+            "failure_action": self._text_or_none(check.failure_action),
+            "notes": self._text_or_none(check.notes),
+            "instructions": self._text_or_none(check.instructions),
+            "completed_by_name": self._text_or_none(check.completed_by.display_name)
+            if check.completed_by
+            else None,
+            "completed_date": self._datetime_or_none(check.completed_date),
         }
 
     def component_item(self, move):
@@ -255,6 +382,29 @@ class MobileManufacturingService:
         if group and group not in user.groups_id:
             raise AccessError("Assigned employee must have manufacturing access.")
         return user
+
+    def _production(self, order_id):
+        production = self.env["mrp.production"].browse(order_id).exists()
+        if not production:
+            raise MissingError("Manufacturing order was not found.")
+        return production
+
+    def _workorder(self, workorder_id):
+        workorder = self.env["mrp.workorder"].browse(workorder_id).exists()
+        if not workorder:
+            raise MissingError("Work order step was not found.")
+        return workorder
+
+    def _quality_check(self, check_id):
+        check = self.env["hg.quality.check"].browse(check_id).exists()
+        if not check:
+            raise MissingError("Quality check was not found.")
+        return check
+
+    def _write_quality_notes(self, check, notes):
+        notes = self._text_or_none(notes)
+        if notes:
+            check.write({"notes": notes})
 
     def _text_or_none(self, value):
         if isinstance(value, str) and value:

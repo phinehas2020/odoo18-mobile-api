@@ -14,6 +14,7 @@ from ..schemas.manufacturing import (
     ManufacturingOrderCreateResponse,
     ManufacturingOrderDetail,
     ManufacturingOrderItem,
+    ManufacturingQualityCheckActionRequest,
 )
 from ..services.manufacturing_service import MobileManufacturingService
 
@@ -173,6 +174,29 @@ def order_detail(
     return ManufacturingOrderDetail(**detail)
 
 
+@router.post("/orders/{order_id}/plan", response_model=ManufacturingOrderDetail)
+def plan_order(
+    order_id: int,
+    env: Annotated[Environment, Depends(auth_jwt_authenticated_odoo_env)],
+) -> ManufacturingOrderDetail:
+    service = MobileManufacturingService(env)
+    _logger.info(
+        "mobile_api.manufacturing.plan.route.start user_id=%s order_id=%s",
+        env.user.id,
+        order_id,
+    )
+    try:
+        detail = service.plan_order(order_id)
+    except Exception as exc:
+        _raise_http(exc, "plan", env.user.id, order_id=order_id)
+    _logger.info(
+        "mobile_api.manufacturing.plan.route.success user_id=%s order_id=%s",
+        env.user.id,
+        order_id,
+    )
+    return ManufacturingOrderDetail(**detail)
+
+
 @router.post("/orders/{order_id}/complete", response_model=ManufacturingOrderDetail)
 def complete_order(
     order_id: int,
@@ -195,4 +219,96 @@ def complete_order(
         env.user.id,
         order_id,
     )
+    return ManufacturingOrderDetail(**detail)
+
+
+@router.post("/workorders/{workorder_id}/start", response_model=ManufacturingOrderDetail)
+def start_workorder(
+    workorder_id: int,
+    env: Annotated[Environment, Depends(auth_jwt_authenticated_odoo_env)],
+) -> ManufacturingOrderDetail:
+    service = MobileManufacturingService(env)
+    _logger.info(
+        "mobile_api.manufacturing.workorder_start.route.start user_id=%s workorder_id=%s",
+        env.user.id,
+        workorder_id,
+    )
+    try:
+        detail = service.start_workorder(workorder_id)
+    except Exception as exc:
+        _raise_http(exc, "workorder_start", env.user.id, workorder_id=workorder_id)
+    return ManufacturingOrderDetail(**detail)
+
+
+@router.post("/workorders/{workorder_id}/stop", response_model=ManufacturingOrderDetail)
+def stop_workorder(
+    workorder_id: int,
+    env: Annotated[Environment, Depends(auth_jwt_authenticated_odoo_env)],
+) -> ManufacturingOrderDetail:
+    service = MobileManufacturingService(env)
+    _logger.info(
+        "mobile_api.manufacturing.workorder_stop.route.start user_id=%s workorder_id=%s",
+        env.user.id,
+        workorder_id,
+    )
+    try:
+        detail = service.stop_workorder(workorder_id)
+    except Exception as exc:
+        _raise_http(exc, "workorder_stop", env.user.id, workorder_id=workorder_id)
+    return ManufacturingOrderDetail(**detail)
+
+
+@router.post("/workorders/{workorder_id}/finish", response_model=ManufacturingOrderDetail)
+def finish_workorder(
+    workorder_id: int,
+    env: Annotated[Environment, Depends(auth_jwt_authenticated_odoo_env)],
+) -> ManufacturingOrderDetail:
+    service = MobileManufacturingService(env)
+    _logger.info(
+        "mobile_api.manufacturing.workorder_finish.route.start user_id=%s workorder_id=%s",
+        env.user.id,
+        workorder_id,
+    )
+    try:
+        detail = service.finish_workorder(workorder_id)
+    except Exception as exc:
+        _raise_http(exc, "workorder_finish", env.user.id, workorder_id=workorder_id)
+    return ManufacturingOrderDetail(**detail)
+
+
+@router.post("/quality-checks/{check_id}/pass", response_model=ManufacturingOrderDetail)
+def pass_quality_check(
+    check_id: int,
+    payload: ManufacturingQualityCheckActionRequest,
+    env: Annotated[Environment, Depends(auth_jwt_authenticated_odoo_env)],
+) -> ManufacturingOrderDetail:
+    service = MobileManufacturingService(env)
+    _logger.info(
+        "mobile_api.manufacturing.quality_pass.route.start user_id=%s check_id=%s",
+        env.user.id,
+        check_id,
+    )
+    try:
+        detail = service.pass_quality_check(check_id, notes=payload.notes)
+    except Exception as exc:
+        _raise_http(exc, "quality_pass", env.user.id, check_id=check_id)
+    return ManufacturingOrderDetail(**detail)
+
+
+@router.post("/quality-checks/{check_id}/fail", response_model=ManufacturingOrderDetail)
+def fail_quality_check(
+    check_id: int,
+    payload: ManufacturingQualityCheckActionRequest,
+    env: Annotated[Environment, Depends(auth_jwt_authenticated_odoo_env)],
+) -> ManufacturingOrderDetail:
+    service = MobileManufacturingService(env)
+    _logger.info(
+        "mobile_api.manufacturing.quality_fail.route.start user_id=%s check_id=%s",
+        env.user.id,
+        check_id,
+    )
+    try:
+        detail = service.fail_quality_check(check_id, notes=payload.notes)
+    except Exception as exc:
+        _raise_http(exc, "quality_fail", env.user.id, check_id=check_id)
     return ManufacturingOrderDetail(**detail)
