@@ -271,6 +271,8 @@ class MobileManufacturingService:
     def _odoo_datetime_or_false(self, value):
         if not value:
             return False
+        if getattr(value, "tzinfo", None):
+            return value.astimezone(timezone.utc).replace(tzinfo=None)
         parsed = fields.Datetime.to_datetime(value)
         if not parsed:
             return False
