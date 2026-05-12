@@ -1,7 +1,7 @@
 from datetime import datetime
 from typing import List, Optional
 
-from pydantic import BaseModel
+from pydantic import BaseModel, Field
 
 
 class ManufacturingComponentItem(BaseModel):
@@ -33,3 +33,13 @@ class ManufacturingOrderDetail(ManufacturingOrderItem):
     bom_name: Optional[str] = None
     components: List[ManufacturingComponentItem] = []
 
+
+class ManufacturingOrderCreateRequest(BaseModel):
+    product_id: int
+    quantity: float = Field(default=1, gt=0)
+    deadline: Optional[datetime] = None
+    notes: Optional[str] = Field(default=None, max_length=2000)
+
+
+class ManufacturingOrderCreateResponse(BaseModel):
+    order: ManufacturingOrderItem

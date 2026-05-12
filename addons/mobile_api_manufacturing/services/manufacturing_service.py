@@ -74,6 +74,82 @@ class MobileManufacturingService:
         )
         return item
 
+    def create_order(self, payload):
+        product_id = payload.get("product_id")
+        product = self.env["product.product"].browse(product_id).exists()
+        if not product:
+            _logger.warning(
+                "mobile_api.manufacturing.create_order.product_not_found user_id=%s product_id=%s",
+                self.env.user.id,
+                product_id,
+            )
+            return None
+
+        quantity = max(float(payload.get("quantity") or 1), 1.0)
+        values = {
+            "product_id": product.id,
+            "product_qty": quantity,
+            "product_uom_id": product.uom_id.id,
+            "date_deadline": payload.get("deadline") or False,
+            "user_id": self.env.user.id,
+        }
+        notes = self._text_or_none(payload.get("notes"))
+        if notes:
+            values["origin"] = notes[:200]
+
+        _logger.info(
+            "mobile_api.manufacturing.create_order.start user_id=%s product_id=%s quantity=%s deadline_present=%s",
+            self.env.user.id,
+            product.id,
+            quantity,
+            bool(values["date_deadline"]),
+        )
+        production = self.env["mrp.production"].create(values)
+        production.action_confirm()
+        if notes:
+            production.message_post(body=notes)
+        _logger.info(
+            "mobile_api.manufacturing.create_order.success user_id=%s order_id=%s name=%s",
+            self.env.user.id,
+            production.id,
+            production.name,
+        )
+        return self.order_item(production)
+
+    def complete_order(self, order_id):
+        production = self.env["mrp.production"].browse(order_id).exists()
+        if not production:
+            _logger.warning(
+                "mobile_api.manufacturing.complete_order.not_found user_id=%s order_id=%s",
+                self.env.user.id,
+                order_id,
+            )
+            return None
+
+        _logger.info(
+            "mobile_api.manufacturing.complete_order.start user_id=%s order_id=%s state=%s",
+            self.env.user.id,
+            production.id,
+            production.state,
+        )
+        if production.state == "draft":
+            production.action_confirm()
+        if production.state not in ("done", "cancel"):
+            production.qty_producing = production.product_qty
+            for move in production.move_raw_ids:
+                if hasattr(move, "quantity"):
+                    move.quantity = move.product_uom_qty
+                elif hasattr(move, "quantity_done"):
+                    move.quantity_done = move.product_uom_qty
+            production.button_mark_done()
+        _logger.info(
+            "mobile_api.manufacturing.complete_order.success user_id=%s order_id=%s state=%s",
+            self.env.user.id,
+            production.id,
+            production.state,
+        )
+        return self.get_order(production.id)
+
     def order_item(self, production):
         return {
             "id": production.id,

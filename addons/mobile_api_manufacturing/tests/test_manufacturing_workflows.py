@@ -95,3 +95,56 @@ class TestMobileApiManufacturingWorkflows(FastAPITransactionCase):
         self.assertEqual(payload["id"], self.attention_order.id)
         self.assertEqual(payload["name"], self.attention_order.name)
         self.assertIn("components", payload)
+
+    def test_create_order_makes_mobile_work_order(self):
+        deadline = fields.Datetime.now() + timedelta(days=1)
+        with self._client() as client:
+            response = client.post(
+                "/v1/manufacturing/orders",
+                json={
+                    "product_id": self.product.id,
+                    "quantity": 3,
+                    "deadline": deadline.isoformat(),
+                    "notes": "Mobile work order note",
+                },
+            )
+        self.assertEqual(response.status_code, 200, response.text)
+        payload = response.json()
+        order = payload["order"]
+        self.assertEqual(order["product_id"], self.product.id)
+        self.assertEqual(order["quantity"], 3)
+        self.assertEqual(order["assigned_user_name"], self.user.display_name)
+
+        production = self.env["mrp.production"].browse(order["id"]).exists()
+        self.assertTrue(production)
+        self.assertEqual(production.product_id, self.product)
+        self.assertEqual(production.product_qty, 3)
+        self.assertEqual(production.user_id, self.user)
+        self.assertEqual(production.origin, "Mobile work order note")
+
+    def test_complete_order_marks_mobile_work_order_done(self):
+        order = self.env["mrp.production"].create(
+            {
+                "product_id": self.product.id,
+                "product_qty": 1,
+                "product_uom_id": self.product.uom_id.id,
+                "user_id": self.user.id,
+            }
+        )
+        order.action_confirm()
+
+        with self._client() as client:
+            response = client.post(f"/v1/manufacturing/orders/{order.id}/complete")
+        self.assertEqual(response.status_code, 200, response.text)
+        payload = response.json()
+        self.assertEqual(payload["id"], order.id)
+        self.assertEqual(payload["state"], "done")
+        self.assertEqual(order.exists().state, "done")
+
+    def test_create_order_returns_404_for_missing_product(self):
+        with self._client() as client:
+            response = client.post(
+                "/v1/manufacturing/orders",
+                json={"product_id": 99999999, "quantity": 1},
+            )
+        self.assertEqual(response.status_code, 404, response.text)
