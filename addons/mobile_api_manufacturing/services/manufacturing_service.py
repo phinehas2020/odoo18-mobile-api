@@ -295,6 +295,11 @@ class MobileManufacturingService:
         }
 
     def workorder_item(self, workorder):
+        is_user_working = bool(
+            workorder.time_ids.filtered(
+                lambda time: not time.date_end and time.user_id.id == self.env.user.id
+            )
+        ) or bool(getattr(workorder, "is_user_working", False))
         return {
             "id": workorder.id,
             "name": self._text_or_none(workorder.name) or f"Step {workorder.id}",
@@ -315,7 +320,7 @@ class MobileManufacturingService:
             "real_duration_minutes": self._number_or_none(
                 getattr(workorder, "duration", None)
             ),
-            "is_user_working": bool(getattr(workorder, "is_user_working", False)),
+            "is_user_working": is_user_working,
             "working_state": self._text_or_none(getattr(workorder, "working_state", None)),
             "started_at": self._datetime_or_none(workorder.date_start),
             "finished_at": self._datetime_or_none(workorder.date_finished),
