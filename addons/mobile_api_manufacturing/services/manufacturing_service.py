@@ -182,7 +182,7 @@ class MobileManufacturingService:
             workorder.id,
             workorder.state,
         )
-        workorder.button_start(raise_on_invalid_state=True)
+        workorder.button_start()
         return self.get_order(workorder.production_id.id)
 
     def stop_workorder(self, workorder_id):
