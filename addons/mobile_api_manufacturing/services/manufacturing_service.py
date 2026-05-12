@@ -1,4 +1,5 @@
 import logging
+from datetime import timezone
 
 from odoo import fields
 from odoo.exceptions import AccessError, MissingError
@@ -116,7 +117,7 @@ class MobileManufacturingService:
             "product_id": product.id,
             "product_qty": quantity,
             "product_uom_id": product.uom_id.id,
-            "date_deadline": payload.get("deadline") or False,
+            "date_deadline": self._odoo_datetime_or_false(payload.get("deadline")),
             "user_id": assigned_user.id,
         }
         notes = self._text_or_none(payload.get("notes"))
@@ -261,7 +262,21 @@ class MobileManufacturingService:
         return None
 
     def _datetime_or_none(self, value):
-        return value or None
+        if not value:
+            return None
+        if value.tzinfo:
+            return value.astimezone(timezone.utc)
+        return value.replace(tzinfo=timezone.utc)
+
+    def _odoo_datetime_or_false(self, value):
+        if not value:
+            return False
+        parsed = fields.Datetime.to_datetime(value)
+        if not parsed:
+            return False
+        if parsed.tzinfo:
+            return parsed.astimezone(timezone.utc).replace(tzinfo=None)
+        return parsed
 
     def _number_or_none(self, value):
         if value is False or value is None:

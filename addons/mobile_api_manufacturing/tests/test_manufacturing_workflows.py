@@ -1,4 +1,4 @@
-from datetime import datetime, time, timedelta
+from datetime import datetime, time, timedelta, timezone
 
 from odoo import fields
 from odoo.tests.common import tagged
@@ -116,7 +116,7 @@ class TestMobileApiManufacturingWorkflows(FastAPITransactionCase):
         self.assertIn("components", payload)
 
     def test_create_order_makes_mobile_work_order(self):
-        deadline = fields.Datetime.now() + timedelta(days=1)
+        deadline = (fields.Datetime.now() + timedelta(days=1)).replace(tzinfo=timezone.utc)
         with self._client() as client:
             response = client.post(
                 "/v1/manufacturing/orders",
@@ -140,6 +140,7 @@ class TestMobileApiManufacturingWorkflows(FastAPITransactionCase):
         self.assertEqual(production.product_id, self.product)
         self.assertEqual(production.product_qty, 3)
         self.assertEqual(production.user_id, self.assigned_user)
+        self.assertIsNone(production.date_deadline.tzinfo)
         self.assertEqual(production.origin, "Mobile work order note")
 
     def test_create_order_returns_404_for_missing_assignee(self):
