@@ -10,11 +10,16 @@ from odoo.addons.fastapi_auth_jwt.dependencies import auth_jwt_authenticated_odo
 
 from ..schemas.manufacturing import (
     ManufacturingAssigneeItem,
+    ManufacturingCompletionReview,
+    ManufacturingLotItem,
+    ManufacturingOrderCompleteRequest,
     ManufacturingOrderCreateRequest,
     ManufacturingOrderCreateResponse,
     ManufacturingOrderDetail,
     ManufacturingOrderItem,
+    ManufacturingProductItem,
     ManufacturingQualityCheckActionRequest,
+    ManufacturingQualityCheckPhotoRequest,
 )
 from ..services.manufacturing_service import MobileManufacturingService
 
@@ -90,7 +95,10 @@ def orders(
         attention,
         limit,
     )
-    items = service.list_orders(attention=attention, limit=limit)
+    try:
+        items = service.list_orders(attention=attention, limit=limit)
+    except Exception as exc:
+        _raise_http(exc, "orders", env.user.id, attention=attention, limit=limit)
     _logger.info(
         "mobile_api.manufacturing.orders.route.success user_id=%s count=%s",
         env.user.id,
@@ -117,6 +125,32 @@ def assignees(
         len(items),
     )
     return [ManufacturingAssigneeItem(**item) for item in items]
+
+
+@router.get("/products", response_model=List[ManufacturingProductItem])
+def products(
+    env: Annotated[Environment, Depends(auth_jwt_authenticated_odoo_env)],
+    search: str = Query("", max_length=100),
+    limit: int = Query(50, ge=1, le=200),
+) -> List[ManufacturingProductItem]:
+    items = MobileManufacturingService(env).list_products(search=search, limit=limit)
+    return [ManufacturingProductItem(**item) for item in items]
+
+
+@router.get("/products/{product_id}/lots", response_model=List[ManufacturingLotItem])
+def product_lots(
+    product_id: int,
+    env: Annotated[Environment, Depends(auth_jwt_authenticated_odoo_env)],
+    search: str = Query("", max_length=100),
+    limit: int = Query(50, ge=1, le=200),
+) -> List[ManufacturingLotItem]:
+    try:
+        items = MobileManufacturingService(env).list_product_lots(
+            product_id, search=search, limit=limit
+        )
+    except Exception as exc:
+        _raise_http(exc, "product_lots", env.user.id, product_id=product_id)
+    return [ManufacturingLotItem(**item) for item in items]
 
 
 @router.post("/orders", response_model=ManufacturingOrderCreateResponse)
@@ -163,7 +197,10 @@ def order_detail(
         env.user.id,
         order_id,
     )
-    detail = service.get_order(order_id)
+    try:
+        detail = service.get_order(order_id)
+    except Exception as exc:
+        _raise_http(exc, "detail", env.user.id, order_id=order_id)
     if not detail:
         raise HTTPException(status_code=status.HTTP_404_NOT_FOUND, detail="Not found")
     _logger.info(
@@ -200,6 +237,7 @@ def plan_order(
 @router.post("/orders/{order_id}/complete", response_model=ManufacturingOrderDetail)
 def complete_order(
     order_id: int,
+    payload: ManufacturingOrderCompleteRequest,
     env: Annotated[Environment, Depends(auth_jwt_authenticated_odoo_env)],
 ) -> ManufacturingOrderDetail:
     service = MobileManufacturingService(env)
@@ -209,7 +247,7 @@ def complete_order(
         order_id,
     )
     try:
-        detail = service.complete_order(order_id)
+        detail = service.complete_order(order_id, _payload_dict(payload))
     except Exception as exc:
         _raise_http(exc, "complete", env.user.id, order_id=order_id)
     if not detail:
@@ -220,6 +258,21 @@ def complete_order(
         order_id,
     )
     return ManufacturingOrderDetail(**detail)
+
+
+@router.get(
+    "/orders/{order_id}/completion-review",
+    response_model=ManufacturingCompletionReview,
+)
+def completion_review(
+    order_id: int,
+    env: Annotated[Environment, Depends(auth_jwt_authenticated_odoo_env)],
+) -> ManufacturingCompletionReview:
+    try:
+        review = MobileManufacturingService(env).completion_review(order_id)
+    except Exception as exc:
+        _raise_http(exc, "completion_review", env.user.id, order_id=order_id)
+    return ManufacturingCompletionReview(**review)
 
 
 @router.post("/workorders/{workorder_id}/start", response_model=ManufacturingOrderDetail)
@@ -311,4 +364,22 @@ def fail_quality_check(
         detail = service.fail_quality_check(check_id, notes=payload.notes)
     except Exception as exc:
         _raise_http(exc, "quality_fail", env.user.id, check_id=check_id)
+    return ManufacturingOrderDetail(**detail)
+
+
+@router.post("/quality-checks/{check_id}/photo", response_model=ManufacturingOrderDetail)
+def submit_quality_photo(
+    check_id: int,
+    payload: ManufacturingQualityCheckPhotoRequest,
+    env: Annotated[Environment, Depends(auth_jwt_authenticated_odoo_env)],
+) -> ManufacturingOrderDetail:
+    try:
+        detail = MobileManufacturingService(env).submit_quality_photo(
+            check_id,
+            image_base64=payload.image_base64,
+            filename=payload.filename,
+            notes=payload.notes,
+        )
+    except Exception as exc:
+        _raise_http(exc, "quality_photo", env.user.id, check_id=check_id)
     return ManufacturingOrderDetail(**detail)

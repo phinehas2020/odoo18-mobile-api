@@ -1,7 +1,13 @@
 from datetime import datetime
-from typing import List, Optional
+from typing import List, Literal, Optional
 
 from pydantic import BaseModel, Field
+
+
+class ManufacturingLotQuantityItem(BaseModel):
+    lot_id: Optional[int] = None
+    lot_name: Optional[str] = None
+    quantity: float
 
 
 class ManufacturingComponentItem(BaseModel):
@@ -12,6 +18,21 @@ class ManufacturingComponentItem(BaseModel):
     reserved_quantity: Optional[float] = None
     done_quantity: Optional[float] = None
     uom_name: Optional[str] = None
+    tracking: str = "none"
+    picked: bool = False
+    lot_quantities: List[ManufacturingLotQuantityItem] = Field(default_factory=list)
+
+
+class ManufacturingLotItem(BaseModel):
+    id: int
+    name: str
+
+
+class ManufacturingProductItem(BaseModel):
+    id: int
+    name: str
+    tracking: str = "none"
+    uom_name: Optional[str] = None
 
 
 class ManufacturingWorkOrderItem(BaseModel):
@@ -19,6 +40,7 @@ class ManufacturingWorkOrderItem(BaseModel):
     name: str
     state: str
     workcenter_name: Optional[str] = None
+    employee_name: Optional[str] = None
     product_name: Optional[str] = None
     quantity: Optional[float] = None
     quantity_remaining: Optional[float] = None
@@ -40,6 +62,7 @@ class ManufacturingQualityCheckItem(BaseModel):
     instructions: Optional[str] = None
     completed_by_name: Optional[str] = None
     completed_date: Optional[datetime] = None
+    has_photo: bool = False
 
 
 class ManufacturingOrderItem(BaseModel):
@@ -57,6 +80,11 @@ class ManufacturingOrderItem(BaseModel):
     quality_state: Optional[str] = None
     quality_check_count: Optional[int] = None
     attention_reason: Optional[str] = None
+    quantity_producing: Optional[float] = None
+    quantity_remaining: Optional[float] = None
+    product_tracking: str = "none"
+    finished_lot_id: Optional[int] = None
+    finished_lot_name: Optional[str] = None
 
 
 class ManufacturingAssigneeItem(BaseModel):
@@ -69,9 +97,9 @@ class ManufacturingAssigneeItem(BaseModel):
 class ManufacturingOrderDetail(ManufacturingOrderItem):
     origin: Optional[str] = None
     bom_name: Optional[str] = None
-    components: List[ManufacturingComponentItem] = []
-    workorders: List[ManufacturingWorkOrderItem] = []
-    quality_checks: List[ManufacturingQualityCheckItem] = []
+    components: List[ManufacturingComponentItem] = Field(default_factory=list)
+    workorders: List[ManufacturingWorkOrderItem] = Field(default_factory=list)
+    quality_checks: List[ManufacturingQualityCheckItem] = Field(default_factory=list)
 
 
 class ManufacturingOrderCreateRequest(BaseModel):
@@ -88,3 +116,36 @@ class ManufacturingOrderCreateResponse(BaseModel):
 
 class ManufacturingQualityCheckActionRequest(BaseModel):
     notes: Optional[str] = Field(default=None, max_length=2000)
+
+
+class ManufacturingQualityCheckPhotoRequest(BaseModel):
+    image_base64: str = Field(min_length=4, max_length=7_100_000)
+    filename: str = Field(default="quality-check.jpg", min_length=1, max_length=150)
+    notes: Optional[str] = Field(default=None, max_length=2000)
+
+
+class ManufacturingComponentConsumptionRequest(BaseModel):
+    move_id: int
+    quantity: float = Field(ge=0)
+    lot_id: Optional[int] = None
+
+
+class ManufacturingOrderCompleteRequest(BaseModel):
+    reviewed: bool
+    quantity: float = Field(gt=0)
+    disposition: Literal["close", "backorder"]
+    finished_lot_id: Optional[int] = None
+    finished_lot_name: Optional[str] = Field(default=None, min_length=1, max_length=100)
+    components: List[ManufacturingComponentConsumptionRequest] = Field(default_factory=list)
+
+
+class ManufacturingCompletionReview(BaseModel):
+    order_id: int
+    can_complete: bool
+    blockers: List[str] = Field(default_factory=list)
+    warnings: List[str] = Field(default_factory=list)
+    suggested_quantity: float
+    quantity_remaining: float
+    requires_finished_lot: bool
+    open_workorder_ids: List[int] = Field(default_factory=list)
+    pending_quality_check_ids: List[int] = Field(default_factory=list)

@@ -10,10 +10,13 @@ from odoo.exceptions import UserError
 from odoo.addons.fastapi_auth_jwt.dependencies import auth_jwt_authenticated_odoo_env
 
 from ..schemas.inventory import (
+    CreatePickingLineRequest,
     PickingDetail,
     PickingListItem,
     ScanRequest,
     ScanResponse,
+    UpdatePickingLineRequest,
+    UpdatePickingLineResponse,
     ValidateRequest,
     ValidateResponse,
 )
@@ -87,13 +90,80 @@ def scan(
                 "conflict_type": "record_version",
             },
         )
+    except UserError as exc:
+        raise HTTPException(status_code=status.HTTP_400_BAD_REQUEST, detail=str(exc))
     _logger.info("mobile_api.inventory.scan.route.success user_id=%s picking_id=%s event_id=%s status=%s lines=%s", env.user.id, picking_id, payload.event_id, result.get("status"), len(result.get("updated_lines", [])))
     return ScanResponse(
         status=result.get("status"),
         updated_lines=result.get("updated_lines", []),
         warnings=result.get("warnings", []),
         next_expected=result.get("next_expected"),
+        record_version=result.get("record_version"),
     )
+
+
+@router.patch(
+    "/pickings/{picking_id}/lines/{line_id}",
+    response_model=UpdatePickingLineResponse,
+)
+def update_picking_line(
+    picking_id: int,
+    line_id: int,
+    payload: UpdatePickingLineRequest,
+    env: Annotated[Environment, Depends(auth_jwt_authenticated_odoo_env)],
+) -> UpdatePickingLineResponse:
+    service = MobileInventoryService(env)
+    try:
+        result = service.update_line(
+            picking_id,
+            line_id,
+            payload.dict(),
+            device_id=payload.device_id,
+            event_id=payload.event_id,
+        )
+    except RecordVersionConflict as conflict:
+        raise HTTPException(
+            status_code=status.HTTP_409_CONFLICT,
+            detail={
+                "server_version": conflict.server_version,
+                "message": "Record version conflict",
+                "conflict_type": "record_version",
+            },
+        )
+    except UserError as exc:
+        raise HTTPException(status_code=status.HTTP_400_BAD_REQUEST, detail=str(exc))
+    return UpdatePickingLineResponse(**result)
+
+
+@router.post(
+    "/pickings/{picking_id}/lines",
+    response_model=UpdatePickingLineResponse,
+)
+def create_picking_line(
+    picking_id: int,
+    payload: CreatePickingLineRequest,
+    env: Annotated[Environment, Depends(auth_jwt_authenticated_odoo_env)],
+) -> UpdatePickingLineResponse:
+    service = MobileInventoryService(env)
+    try:
+        result = service.create_line(
+            picking_id,
+            payload.dict(),
+            device_id=payload.device_id,
+            event_id=payload.event_id,
+        )
+    except RecordVersionConflict as conflict:
+        raise HTTPException(
+            status_code=status.HTTP_409_CONFLICT,
+            detail={
+                "server_version": conflict.server_version,
+                "message": "Record version conflict",
+                "conflict_type": "record_version",
+            },
+        )
+    except UserError as exc:
+        raise HTTPException(status_code=status.HTTP_400_BAD_REQUEST, detail=str(exc))
+    return UpdatePickingLineResponse(**result)
 
 
 @router.post("/pickings/{picking_id}/validate", response_model=ValidateResponse)
@@ -128,4 +198,4 @@ def validate(
             detail=str(exc),
         )
     _logger.info("mobile_api.inventory.validate.route.success user_id=%s picking_id=%s event_id=%s status=%s", env.user.id, picking_id, payload.event_id, result.get("status"))
-    return ValidateResponse(status=result.get("status"))
+    return ValidateResponse(**result)

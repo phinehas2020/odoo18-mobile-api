@@ -1,4 +1,5 @@
 from odoo import api, fields, models
+from odoo.exceptions import UserError
 
 
 class MobileSyncService(models.AbstractModel):
@@ -64,15 +65,25 @@ class MobileSyncService(models.AbstractModel):
                     }
                 )
                 continue
-            result = self._dispatch_action(device_id, action)
+            try:
+                with self.env.cr.savepoint():
+                    result = self._dispatch_action(device_id, action)
+            except UserError as exc:
+                result = {"event_id": event_id, "status": "failed", "message": str(exc)}
+            result["event_id"] = event_id
+            # Some handlers create their own idempotency receipt. Reuse it.
+            receipt = self.env["mobile.outbox.receipt"].sudo().search([("event_id", "=", event_id)], limit=1)
+            if result.get("status") != "success":
+                result["status"] = "failed"
+                result.setdefault("message", "Review this operation online before trying again.")
             values = {
                 "device_id": device_id,
                 "event_id": event_id,
                 "processed_at": fields.Datetime.now(),
                 "status": result.get("status", "failed"),
                 "message": result.get("message"),
-                "model": result.get("model"),
-                "res_id": result.get("res_id"),
+                "model": result.get("model") or (receipt.model if receipt else None),
+                "res_id": result.get("res_id") or (receipt.res_id if receipt else None),
                 "retry_requested": False,
             }
             if receipt:
