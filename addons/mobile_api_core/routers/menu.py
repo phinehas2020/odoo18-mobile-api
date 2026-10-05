@@ -95,6 +95,22 @@ def menu(
             native=native,
         ))
 
+    # A native packing fallback can be disabled without changing the order's
+    # completion policy or the guarded Odoo packing operation.
+    packing_group = env.ref(
+        "shopify_fulfillment.group_packing_employee", raise_if_not_found=False
+    )
+    config = env["ir.config_parameter"].sudo()
+    packing_enabled = str(config.get_param("fulfillment.packing_native_enabled", "false")).lower() in {"true", "1"}
+    if packing_group and packing_group in user.groups_id and packing_enabled:
+        items.append(MenuItem(
+            key="packing",
+            label="Pack Orders",
+            enabled=True,
+            deep_link="app://packing",
+            native=True,
+        ))
+
     # Always add settings at the end
     items.append(MenuItem(
         key="settings",
